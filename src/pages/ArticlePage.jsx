@@ -11,6 +11,7 @@ import Seo from '../components/common/Seo.jsx';
 import { getArticleBySlug, getArticlesByCategory } from '../data/demoContent.js';
 import {
   countArticleLikes,
+  countArticleComments,
   ensureArticleInSupabase,
   getArticleBySlugDb,
   hasUserBookmarked,
@@ -35,6 +36,7 @@ export default function ArticlePage() {
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
   const [translatedContent, setTranslatedContent] = useState('');
   const [translatedTitle, setTranslatedTitle] = useState('');
   const [translatedExcerpt, setTranslatedExcerpt] = useState('');
@@ -80,10 +82,18 @@ export default function ArticlePage() {
   useEffect(() => {
     if (!article?.id) return;
     listComments({ approvedOnly: true })
-      .then((items) => setComments(items.filter((item) => item.articleId === article.id)))
-      .catch(() => setComments([]));
+      .then((items) => {
+        const articleComments = items.filter((item) => item.articleId === article.id);
+        setComments(articleComments);
+        setCommentCount(articleComments.length);
+      })
+      .catch(() => {
+        setComments([]);
+        setCommentCount(0);
+      });
     if (canInteractWithArticle) {
       countArticleLikes(article.id).then(setLikeCount).catch(() => setLikeCount(0));
+      countArticleComments(article.id).then(setCommentCount).catch(() => {});
     }
     if (currentUser && canInteractWithArticle) {
       hasUserLiked(article.id, currentUser.id).then(setLiked).catch(() => setLiked(false));
@@ -107,7 +117,10 @@ export default function ArticlePage() {
         status: hasVulgarContent(comment) ? 'pending' : 'approved',
         moderationReason: getModerationReason(comment),
       });
-      setComments((items) => (saved.status === 'approved' ? [saved, ...items] : items));
+      if (saved.status === 'approved') {
+        setComments((items) => [saved, ...items]);
+        setCommentCount((count) => count + 1);
+      }
       setComment('');
       toast.success(saved.status === 'approved' ? 'Comment posted.' : 'Comment sent for approval.');
     } catch (error) {
@@ -182,10 +195,10 @@ export default function ArticlePage() {
                   <Bookmark size={16} /> {bookmarked ? 'Bookmarked' : 'Bookmark'}
                 </button>
                 <button className={liked ? 'btn-primary bg-red-600 hover:bg-red-700' : 'btn-secondary'} onClick={likeArticle} disabled={liking}>
-                  <Heart size={16} fill={liked ? 'currentColor' : 'none'} /> {liked ? 'Unlike' : 'Like'} {likeCount ? `(${likeCount})` : ''}
+                  <Heart size={16} fill={liked ? 'currentColor' : 'none'} /> {liked ? 'Unlike' : 'Like'} ({likeCount})
                 </button>
                 <span className="btn-secondary cursor-default">
-                  <MessageCircle size={16} /> {comments.length}
+                  <MessageCircle size={16} /> {commentCount}
                 </span>
                 <button className="btn-secondary" onClick={shareArticle}>
                   <Share2 size={16} /> Share
@@ -214,7 +227,7 @@ export default function ArticlePage() {
 
             <section className="mt-10">
               <h2 className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
-                Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{comments.length}</span>
+                Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{commentCount}</span>
               </h2>
               <form onSubmit={submitComment} className="news-card mb-6 p-4">
                 <textarea className="input min-h-28" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={isBanned ? 'Banned users cannot comment.' : 'Join the discussion'} disabled={isBanned} />
