@@ -1,0 +1,70 @@
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import useSettings from '../../hooks/useSettings.js';
+import { saveSettings } from '../../supabase/api.js';
+
+export default function SettingsPage() {
+  const settings = useSettings();
+  const [form, setForm] = useState(settings);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => setForm(settings), [settings]);
+
+  function setField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await saveSettings({ ...form, websiteName: form.websiteName || 'FTP NEWS', logoURL: form.logoURL || '' });
+      toast.success('Settings saved.');
+    } catch (error) {
+      toast.error(error.message || 'Settings save failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section>
+      <h1 className="mb-6 text-2xl font-extrabold">Website Settings</h1>
+      <form onSubmit={submit} className="news-card grid gap-5 p-5 lg:grid-cols-2">
+        <div>
+          <label className="label">Website Name</label>
+          <input className="input mt-2" value={form.websiteName || ''} onChange={(event) => setField('websiteName', event.target.value)} />
+        </div>
+        <div>
+          <label className="label">Logo URL</label>
+          <input className="input mt-2" value={form.logoURL || ''} onChange={(event) => setField('logoURL', event.target.value)} placeholder="Paste logo image URL" />
+        </div>
+        <div>
+          <label className="label">Contact Email</label>
+          <input className="input mt-2" value={form.contactEmail || ''} onChange={(event) => setField('contactEmail', event.target.value)} />
+        </div>
+        <div>
+          <label className="label">Default SEO Title</label>
+          <input className="input mt-2" value={form.defaultSeoTitle || ''} onChange={(event) => setField('defaultSeoTitle', event.target.value)} />
+        </div>
+        <div className="lg:col-span-2">
+          <label className="label">Default SEO Description</label>
+          <textarea className="input mt-2 min-h-24" value={form.defaultSeoDescription || ''} onChange={(event) => setField('defaultSeoDescription', event.target.value)} />
+        </div>
+        <div className="lg:col-span-2">
+          <label className="label">Footer Text</label>
+          <textarea className="input mt-2 min-h-24" value={form.footerText || ''} onChange={(event) => setField('footerText', event.target.value)} />
+        </div>
+        {['facebook', 'x', 'instagram', 'youtube', 'whatsapp', 'telegram'].map((key) => (
+          <div key={key}>
+            <label className="label capitalize">{key}</label>
+            <input className="input mt-2" value={form.socialLinks?.[key] || ''} onChange={(event) => setField('socialLinks', { ...(form.socialLinks || {}), [key]: event.target.value })} />
+          </div>
+        ))}
+        <div className="lg:col-span-2">
+          <button className="btn-primary" disabled={busy}>{busy ? 'Saving...' : 'Save Settings'}</button>
+        </div>
+      </form>
+    </section>
+  );
+}

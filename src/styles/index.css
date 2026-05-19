@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:wght@700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #f3f4f6;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+img {
+  max-width: 100%;
+}
+
+.container-page {
+  width: min(1180px, calc(100% - 24px));
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .container-page {
+    width: min(1180px, calc(100% - 32px));
+  }
+}
+
+.news-card {
+  @apply bg-white border border-gray-200 rounded-lg shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-md bg-brand-red px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.input {
+  @apply w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-blue-100;
+}
+
+.label {
+  @apply text-sm font-semibold text-gray-800;
+}
+
+.ad-slot {
+  @apply flex min-h-24 items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-100 px-4 py-6 text-center text-sm font-medium text-gray-500;
+}
+
+.prose-news {
+  @apply max-w-none text-lg leading-8 text-gray-800;
+}
+
+.prose-news h2 {
+  @apply mt-8 text-2xl font-bold text-gray-950;
+}
+
+.prose-news p {
+  @apply my-5;
+}
