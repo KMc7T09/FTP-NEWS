@@ -8,7 +8,6 @@ import ArticleCard from '../components/article/ArticleCard.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
 import InlineTranslate from '../components/common/InlineTranslate.jsx';
 import Seo from '../components/common/Seo.jsx';
-import { getArticleBySlug, getArticlesByCategory } from '../data/demoContent.js';
 import {
   countArticleLikes,
   countArticleComments,
@@ -28,8 +27,8 @@ import { getModerationReason, hasVulgarContent } from '../utils/moderation.js';
 export default function ArticlePage() {
   const { slug } = useParams();
   const { currentUser, profile, isBanned, isEditor, isAdmin } = useAuth();
-  const [article, setArticle] = useState(getArticleBySlug(slug));
-  const [related, setRelated] = useState(article ? getArticlesByCategory(article.categorySlug || article.categoryId).filter((item) => item.id !== article.id).slice(0, 3) : []);
+  const [article, setArticle] = useState(null);
+  const [related, setRelated] = useState([]);
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState('');
   const [liking, setLiking] = useState(false);
@@ -50,27 +49,19 @@ export default function ArticlePage() {
       setArticle(existing);
       return existing;
     }
-    if (isAdmin || isEditor) {
-      const saved = await ensureArticleInSupabase(article);
-      setArticle(saved);
-      toast.success('Article added to Supabase.');
-      return saved;
-    }
     throw new Error('This article is being prepared. Please try again later.');
   }
 
   useEffect(() => {
     getArticleBySlugDb(slug)
       .then((row) => {
-        const next = row || getArticleBySlug(slug);
-        setArticle(next);
-        if (next) {
-          listArticles({ publishedOnly: true, categorySlug: next.categorySlug || next.categoryId, limit: 4 })
-            .then((items) => setRelated(items.filter((item) => item.id !== next.id).slice(0, 3)))
-            .catch(() => {});
-        }
+        setArticle(row);
+        if (!row) return;
+        listArticles({ publishedOnly: true, categorySlug: row.categorySlug || row.categoryId, limit: 4 })
+          .then((items) => setRelated(items.filter((item) => item.id !== row.id).slice(0, 3)))
+          .catch(() => {});
       })
-      .catch(() => setArticle(getArticleBySlug(slug)));
+      .catch(() => setArticle(null));
   }, [slug]);
 
   useEffect(() => {

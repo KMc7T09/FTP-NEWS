@@ -2,18 +2,17 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import Seo from '../components/common/Seo.jsx';
-import { getArticlesByCategory } from '../data/demoContent.js';
 import { listArticles } from '../supabase/api.js';
 
 export default function CategoryPage() {
   const { slug } = useParams();
   const [count, setCount] = useState(9);
-  const [data, setData] = useState(getArticlesByCategory(slug).slice(0, count));
+  const [data, setData] = useState([]);
 
   useEffect(() => {
     listArticles({ publishedOnly: true, categorySlug: slug, limit: count })
-      .then((rows) => setData(rows.length ? rows : getArticlesByCategory(slug).slice(0, count)))
-      .catch(() => setData(getArticlesByCategory(slug).slice(0, count)));
+      .then(setData)
+      .catch(() => setData([]));
   }, [slug, count]);
 
   return (
@@ -26,6 +25,7 @@ export default function CategoryPage() {
             <ArticleCard key={article.id} article={article} />
           ))}
         </div>
+        {!data.length ? <p className="rounded-lg bg-white p-6 text-gray-600">No published articles in this category yet.</p> : null}
         <div className="mt-8 text-center">
           <button className="btn-secondary" onClick={() => setCount((value) => value + 9)}>
             Load More
