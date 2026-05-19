@@ -179,8 +179,9 @@ export async function updateComment(id, updates) {
     ...(updates.moderationReason !== undefined ? { moderation_reason: updates.moderationReason } : {}),
     updated_at: new Date().toISOString(),
   };
-  const { data, error } = await client.from('comments').update(row).eq('id', id).select('*').single();
+  const { data, error } = await client.from('comments').update(row).eq('id', id).select('*').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Comment update blocked. Check Supabase admin policy and your profile role.');
   return mapComment(data);
 }
 
@@ -199,13 +200,14 @@ export async function getSettings() {
 
 export async function saveSettings(settings) {
   const client = requireSupabase();
-  const { data, error } = await client
-    .from('settings')
-    .upsert({ id: 'site', data: settings, updated_at: new Date().toISOString() })
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data.data;
+  const row = { id: 'site', data: settings, updated_at: new Date().toISOString() };
+  let result = await client.from('settings').update(row).eq('id', 'site').select('*').maybeSingle();
+  if (!result.error && !result.data) {
+    result = await client.from('settings').insert(row).select('*').maybeSingle();
+  }
+  if (result.error) throw result.error;
+  if (!result.data) throw new Error('Settings save blocked. Check Supabase admin policy and your profile role.');
+  return result.data.data;
 }
 
 export async function listAds() {
