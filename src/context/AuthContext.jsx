@@ -8,6 +8,15 @@ const bootstrapAdminEmails = (import.meta.env.VITE_BOOTSTRAP_ADMIN_EMAILS || '')
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
 
+function withTimeout(promise, message = 'Connection took too long. Please refresh and try again.', ms = 10000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 function userToProfile(user, extra = {}) {
   return {
     id: user.id,
@@ -34,12 +43,12 @@ export function AuthProvider({ children }) {
     }
     let saved = null;
     try {
-      saved = await getProfile(user.id);
+      saved = await withTimeout(getProfile(user.id), 'Profile loading took too long.');
     } catch (error) {
       console.warn('Profile read failed:', error);
     }
     try {
-      if (!saved) saved = await upsertProfile(userToProfile(user));
+      if (!saved) saved = await withTimeout(upsertProfile(userToProfile(user)), 'Profile setup took too long.');
       setProfile(saved);
       setAuthError('');
       return saved;
@@ -60,25 +69,31 @@ export function AuthProvider({ children }) {
     }
 
     let alive = true;
-    supabase.auth.getSession().then(async ({ data, error }) => {
+    withTimeout(supabase.auth.getSession(), 'Login check took too long.').then(async ({ data, error }) => {
       if (!alive) return;
       try {
         if (error) setAuthError(error.message);
         const user = data.session?.user || null;
         setCurrentUser(user);
-        if (user) await loadProfile(user);
+        if (user) await withTimeout(loadProfile(user), 'Profile loading took too long.');
       } catch (profileError) {
         setAuthError(profileError.message);
       } finally {
         if (alive) setLoading(false);
       }
+    }).catch((error) => {
+      if (!alive) return;
+      setAuthError(error.message);
+      setCurrentUser(null);
+      setProfile(null);
+      setLoading(false);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const user = session?.user || null;
       setCurrentUser(user);
       try {
-        if (user) await loadProfile(user);
+        if (user) await withTimeout(loadProfile(user), 'Profile loading took too long.');
         else setProfile(null);
       } catch (profileError) {
         setAuthError(profileError.message);
@@ -101,7 +116,7 @@ export function AuthProvider({ children }) {
       options: { data: { name } },
     });
     if (error) throw error;
-    if (data.session?.user) await upsertProfile(userToProfile(data.session.user, { name }));
+    if (data.session?.user) await withTimeout(upsertProfile(userToProfile(data.session.user, { name })), 'Profile setup took too long.');
     return data.user;
   }
 
@@ -148,7 +163,7 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       logout,
       resetPassword,
-      refreshProfile: () => (currentUser ? loadProfile(currentUser) : null),
+      refreshProfile: () => (currentUser ? withTimeout(loadProfile(currentUser), 'Profile refresh took too long.') : null),
     }),
     [currentUser, profile, loading, authError],
   );

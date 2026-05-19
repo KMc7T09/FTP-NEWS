@@ -1,4 +1,4 @@
-import { Bookmark, Flag, Heart, Languages, Share2 } from 'lucide-react';
+import { Bookmark, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -35,6 +35,7 @@ export default function ArticlePage() {
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [translatedContent, setTranslatedContent] = useState('');
   const canInteractWithArticle = Boolean(article?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(article.id));
 
   async function getRealArticleForAction() {
@@ -67,6 +68,10 @@ export default function ArticlePage() {
       })
       .catch(() => setArticle(getArticleBySlug(slug)));
   }, [slug]);
+
+  useEffect(() => {
+    setTranslatedContent('');
+  }, [article?.id, article?.content]);
 
   useEffect(() => {
     if (!article?.id) return;
@@ -173,22 +178,26 @@ export default function ArticlePage() {
                 <button className={liked ? 'btn-primary bg-red-600 hover:bg-red-700' : 'btn-secondary'} onClick={likeArticle} disabled={liking}>
                   <Heart size={16} fill={liked ? 'currentColor' : 'none'} /> {liked ? 'Unlike' : 'Like'} {likeCount ? `(${likeCount})` : ''}
                 </button>
+                <span className="btn-secondary cursor-default">
+                  <MessageCircle size={16} /> {comments.length}
+                </span>
                 <button className="btn-secondary" onClick={shareArticle}>
                   <Share2 size={16} /> Share
                 </button>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 text-sm font-bold text-gray-600"><Languages size={16} /> Translate:</span>
-              <InlineTranslate />
+              <InlineTranslate html={article.content} onTranslated={setTranslatedContent} onReset={() => setTranslatedContent('')} />
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />
-            <div className="prose-news" dangerouslySetInnerHTML={{ __html: article.content }} />
+            <div className="prose-news" dangerouslySetInnerHTML={{ __html: translatedContent || article.content }} />
             <AdSlot label="Article Bottom Ad Slot" position="article-bottom" className="my-8" />
 
             <section className="mt-10">
-              <h2 className="mb-4 text-2xl font-extrabold">Comments</h2>
+              <h2 className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
+                Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{comments.length}</span>
+              </h2>
               <form onSubmit={submitComment} className="news-card mb-6 p-4">
                 <textarea className="input min-h-28" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={isBanned ? 'Banned users cannot comment.' : 'Join the discussion'} disabled={isBanned} />
                 <button className="btn-primary mt-3" disabled={isBanned}>

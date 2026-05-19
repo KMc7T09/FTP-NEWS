@@ -17,14 +17,17 @@ export default function ContactPage() {
           <div className="news-card p-5">
             <h2 className="font-extrabold">News Desk</h2>
             <p className="mt-3 text-sm text-gray-600">{settings.contactEmail}</p>
+            {settings.contactPhone ? <p className="mt-2 text-sm text-gray-600">{settings.contactPhone}</p> : null}
           </div>
           <div className="news-card p-5">
             <h2 className="font-extrabold">Corrections</h2>
             <p className="mt-3 text-sm text-gray-600">Share the article link and explain the correction clearly.</p>
           </div>
           <div className="news-card p-5">
-            <h2 className="font-extrabold">Partnerships</h2>
-            <p className="mt-3 text-sm text-gray-600">For ads, collaborations, and sponsorship discussions.</p>
+            <h2 className="font-extrabold">Office</h2>
+            <p className="mt-3 whitespace-pre-line text-sm text-gray-600">
+              {settings.contactAddress || 'For ads, collaborations, and sponsorship discussions.'}
+            </p>
           </div>
         </div>
       </section>

@@ -295,6 +295,17 @@ export async function countArticleLikes(articleId) {
   return count || 0;
 }
 
+export async function countArticleComments(articleId) {
+  const client = requireSupabase();
+  const { count, error } = await client
+    .from('comments')
+    .select('id', { count: 'exact', head: true })
+    .eq('article_id', articleId)
+    .eq('status', 'approved');
+  if (error) throw error;
+  return count || 0;
+}
+
 export async function toggleBookmark(articleId, userId) {
   const client = requireSupabase();
   const existing = await client.from('bookmarks').select('id').eq('article_id', articleId).eq('user_id', userId).maybeSingle();

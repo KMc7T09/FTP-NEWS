@@ -44,6 +44,14 @@ export default function SettingsPage() {
           <input className="input mt-2" value={form.contactEmail || ''} onChange={(event) => setField('contactEmail', event.target.value)} />
         </div>
         <div>
+          <label className="label">Contact Phone</label>
+          <input className="input mt-2" value={form.contactPhone || ''} onChange={(event) => setField('contactPhone', event.target.value)} placeholder="+91..." />
+        </div>
+        <div className="lg:col-span-2">
+          <label className="label">Contact Address</label>
+          <textarea className="input mt-2 min-h-20" value={form.contactAddress || ''} onChange={(event) => setField('contactAddress', event.target.value)} />
+        </div>
+        <div>
           <label className="label">Default SEO Title</label>
           <input className="input mt-2" value={form.defaultSeoTitle || ''} onChange={(event) => setField('defaultSeoTitle', event.target.value)} />
         </div>
@@ -54,6 +62,31 @@ export default function SettingsPage() {
         <div className="lg:col-span-2">
           <label className="label">Footer Text</label>
           <textarea className="input mt-2 min-h-24" value={form.footerText || ''} onChange={(event) => setField('footerText', event.target.value)} />
+        </div>
+        <div>
+          <label className="label">Founder Name</label>
+          <input className="input mt-2" value={form.founderName || ''} onChange={(event) => setField('founderName', event.target.value)} />
+        </div>
+        <div>
+          <label className="label">Founder Title</label>
+          <input className="input mt-2" value={form.founderTitle || ''} onChange={(event) => setField('founderTitle', event.target.value)} />
+        </div>
+        <div>
+          <label className="label">Founder Photo URL</label>
+          <input className="input mt-2" value={form.founderPhotoURL || ''} onChange={(event) => setField('founderPhotoURL', event.target.value)} placeholder="Paste founder image URL" />
+        </div>
+        <div className="lg:col-span-2">
+          <label className="label">Founder Bio</label>
+          <textarea className="input mt-2 min-h-32" value={form.founderBio || ''} onChange={(event) => setField('founderBio', event.target.value)} />
+        </div>
+        <div className="lg:col-span-2">
+          <label className="label">Team Members</label>
+          <textarea
+            className="input mt-2 min-h-32"
+            value={form.teamText || ''}
+            onChange={(event) => setField('teamText', event.target.value)}
+            placeholder={'Name | Role\nName | Role'}
+          />
         </div>
         {['facebook', 'x', 'instagram', 'youtube', 'whatsapp', 'telegram'].map((key) => (
           <div key={key}>

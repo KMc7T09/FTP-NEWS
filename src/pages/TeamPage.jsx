@@ -1,12 +1,16 @@
 import Seo from '../components/common/Seo.jsx';
-
-const team = [
-  { name: 'Editorial Desk', role: 'News and verification' },
-  { name: 'Politics Desk', role: 'Fresh Take Politics coverage' },
-  { name: 'Community Desk', role: 'Reader tips and corrections' },
-];
+import useSettings from '../hooks/useSettings.js';
 
 export default function TeamPage() {
+  const settings = useSettings();
+  const team = (settings.teamText || '')
+    .split('\n')
+    .map((line) => {
+      const [name, role] = line.split('|').map((part) => part?.trim());
+      return name ? { name, role: role || 'Team member' } : null;
+    })
+    .filter(Boolean);
+
   return (
     <>
       <Seo title="Team | FTP NEWS" description="FTP NEWS team details." />

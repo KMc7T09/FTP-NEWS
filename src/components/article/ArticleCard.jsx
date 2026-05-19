@@ -1,8 +1,36 @@
 import { Link } from 'react-router-dom';
-import { Clock } from 'lucide-react';
+import { Clock, Heart, MessageCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { formatDate, readTime } from '../../utils/format.js';
+import { countArticleComments, countArticleLikes } from '../../supabase/api.js';
+
+function isUuid(value = '') {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
+}
 
 export default function ArticleCard({ article, large = false }) {
+  const [stats, setStats] = useState({ likes: 0, comments: 0 });
+
+  useEffect(() => {
+    if (!isUuid(article.id)) {
+      setStats({ likes: 0, comments: 0 });
+      return;
+    }
+
+    let alive = true;
+    Promise.all([countArticleLikes(article.id), countArticleComments(article.id)])
+      .then(([likes, comments]) => {
+        if (alive) setStats({ likes, comments });
+      })
+      .catch(() => {
+        if (alive) setStats({ likes: 0, comments: 0 });
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [article.id]);
+
   return (
     <article className={`news-card overflow-hidden ${large ? 'md:grid md:grid-cols-[1.2fr_1fr]' : ''}`}>
       <Link to={`/article/${article.slug}`} className="block bg-gray-200">
@@ -23,11 +51,19 @@ export default function ArticleCard({ article, large = false }) {
           </h2>
         </Link>
         <p className="line-clamp-3 text-sm leading-6 text-gray-600">{article.excerpt}</p>
-        <div className="mt-auto flex items-center justify-between text-xs font-medium text-gray-500">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-gray-500">
           <span>{article.authorName || 'News Desk'}</span>
-          <span className="inline-flex items-center gap-1">
-            <Clock size={14} /> {readTime(article.content)}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1">
+              <Heart size={14} /> {stats.likes}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle size={14} /> {stats.comments}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Clock size={14} /> {readTime(article.content)}
+            </span>
+          </div>
         </div>
       </div>
     </article>
