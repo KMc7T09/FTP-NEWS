@@ -59,7 +59,10 @@ export default function ProfilePage() {
               <label className="label">Email</label>
               <input className="input mt-2" value={currentUser?.email || ''} disabled />
             </div>
-            <p className="rounded-md bg-gray-100 p-3 text-sm font-semibold">Account status: {profile?.status || 'active'}</p>
+            <div className="rounded-md bg-gray-100 p-3 text-sm font-semibold">
+              <p>Account role: {profile?.role || 'user'}</p>
+              <p className="mt-1">Account status: {profile?.status || 'active'}</p>
+            </div>
             {(authError || dbError) && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">
                 {authError || dbError}

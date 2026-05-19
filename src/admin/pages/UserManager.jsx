@@ -19,9 +19,11 @@ export default function UserManager() {
     try {
       const updated = await updateProfileAdmin(id, updates);
       setRows((users) => users.map((user) => (user.id === id ? updated : user)));
-      toast.success('User updated.');
+      toast.success(`User updated to ${updated.role} / ${updated.status}.`);
+      load();
     } catch (error) {
       toast.error(error.message || 'User update failed.');
+      load();
     }
   }
 

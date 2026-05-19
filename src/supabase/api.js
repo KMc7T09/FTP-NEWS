@@ -51,8 +51,9 @@ export async function updateProfileAdmin(id, updates) {
     ...(updates.bannedReason !== undefined ? { banned_reason: updates.bannedReason } : {}),
     updated_at: new Date().toISOString(),
   };
-  const { data, error } = await client.from('profiles').update(row).eq('id', id).select('*').single();
+  const { data, error } = await client.from('profiles').update(row).eq('id', id).select('*').maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Role update blocked. Run the Supabase admin policy SQL and try again.');
   return mapProfile(data);
 }
 
