@@ -36,6 +36,8 @@ export default function ArticlePage() {
   const [bookmarked, setBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [translatedContent, setTranslatedContent] = useState('');
+  const [translatedTitle, setTranslatedTitle] = useState('');
+  const [translatedExcerpt, setTranslatedExcerpt] = useState('');
   const canInteractWithArticle = Boolean(article?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(article.id));
 
   async function getRealArticleForAction() {
@@ -71,6 +73,8 @@ export default function ArticlePage() {
 
   useEffect(() => {
     setTranslatedContent('');
+    setTranslatedTitle('');
+    setTranslatedExcerpt('');
   }, [article?.id, article?.content]);
 
   useEffect(() => {
@@ -78,10 +82,12 @@ export default function ArticlePage() {
     listComments({ approvedOnly: true })
       .then((items) => setComments(items.filter((item) => item.articleId === article.id)))
       .catch(() => setComments([]));
+    if (canInteractWithArticle) {
+      countArticleLikes(article.id).then(setLikeCount).catch(() => setLikeCount(0));
+    }
     if (currentUser && canInteractWithArticle) {
       hasUserLiked(article.id, currentUser.id).then(setLiked).catch(() => setLiked(false));
       hasUserBookmarked(article.id, currentUser.id).then(setBookmarked).catch(() => setBookmarked(false));
-      countArticleLikes(article.id).then(setLikeCount).catch(() => setLikeCount(0));
     }
   }, [article?.id, canInteractWithArticle, currentUser?.id]);
 
@@ -167,8 +173,8 @@ export default function ArticlePage() {
               <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
               <span className="text-gray-400">{readTime(article.content)}</span>
             </div>
-            <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{article.title}</h1>
-            <p className="mt-4 text-lg leading-8 text-gray-600">{article.excerpt}</p>
+            <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{translatedTitle || article.title}</h1>
+            <p className="mt-4 text-lg leading-8 text-gray-600">{translatedExcerpt || article.excerpt}</p>
             <div className="mt-5 flex items-center justify-between border-y border-gray-200 py-4">
               <span className="text-sm font-semibold text-gray-700">By {article.authorName || 'News Desk'}</span>
               <div className="flex flex-wrap justify-end gap-2">
@@ -187,7 +193,19 @@ export default function ArticlePage() {
               </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <InlineTranslate html={article.content} onTranslated={setTranslatedContent} onReset={() => setTranslatedContent('')} />
+              <InlineTranslate
+                html={article.content}
+                title={article.title}
+                excerpt={article.excerpt}
+                onTranslated={setTranslatedContent}
+                onTitleTranslated={setTranslatedTitle}
+                onExcerptTranslated={setTranslatedExcerpt}
+                onReset={() => {
+                  setTranslatedContent('');
+                  setTranslatedTitle('');
+                  setTranslatedExcerpt('');
+                }}
+              />
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />

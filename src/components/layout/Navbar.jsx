@@ -32,7 +32,10 @@ export default function Navbar() {
         </button>
         <Link to="/" className="flex min-w-0 shrink items-center gap-2 md:shrink-0 md:gap-3">
           {settings.logoURL ? <img src={settings.logoURL} alt="" className="h-9 w-9 rounded object-cover" /> : null}
-          <span className="truncate font-serif text-base font-bold text-gray-950 sm:text-xl">{settings.websiteName}</span>
+          <span className="min-w-0">
+            <span className="block truncate font-serif text-base font-bold leading-tight text-gray-950 sm:text-xl">{settings.websiteName}</span>
+            <span className="hidden text-[11px] font-bold uppercase tracking-wide text-brand-red sm:block">Fresh Take Politics</span>
+          </span>
         </Link>
         <nav className="hidden flex-1 items-center justify-center gap-5 md:flex">
           {navItems.map(([label, path]) => (

@@ -34,6 +34,7 @@ export default function SettingsPage() {
         <div>
           <label className="label">Website Name</label>
           <input className="input mt-2" value={form.websiteName || ''} onChange={(event) => setField('websiteName', event.target.value)} />
+          <p className="mt-2 text-xs text-gray-500">Recommended: THE FTP NEWS. FTP means Fresh Take Politics.</p>
         </div>
         <div>
           <label className="label">Logo URL</label>
@@ -85,8 +86,11 @@ export default function SettingsPage() {
             className="input mt-2 min-h-32"
             value={form.teamText || ''}
             onChange={(event) => setField('teamText', event.target.value)}
-            placeholder={'Name | Role\nName | Role'}
+            placeholder={'Name | Role | Photo URL | Profile Link\nName | Role | Photo URL | Profile Link'}
           />
+          <p className="mt-2 text-xs leading-5 text-gray-500">
+            One member per line. Example: Ramesh Chandra Khotei | Founder | https://image-link.jpg | https://instagram.com/username
+          </p>
         </div>
         {['facebook', 'x', 'instagram', 'youtube', 'whatsapp', 'telegram'].map((key) => (
           <div key={key}>

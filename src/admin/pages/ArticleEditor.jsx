@@ -6,6 +6,7 @@ import { createSlug } from '../../utils/slug.js';
 import { excerptFrom } from '../../utils/format.js';
 import RichTextEditor from '../../components/common/RichTextEditor.jsx';
 import { getArticle, listCategories, saveArticle } from '../../supabase/api.js';
+import { staticCategories } from '../../data/demoContent.js';
 
 const blank = {
   title: '',
@@ -32,7 +33,9 @@ export default function ArticleEditor() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    listCategories().then(setCategories).catch(() => setCategories([]));
+    listCategories()
+      .then((items) => setCategories(items.length ? items : staticCategories))
+      .catch(() => setCategories(staticCategories));
   }, []);
 
   useEffect(() => {

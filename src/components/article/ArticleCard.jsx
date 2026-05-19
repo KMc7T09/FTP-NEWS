@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Clock, Heart, MessageCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatDate, readTime } from '../../utils/format.js';
-import { countArticleComments, countArticleLikes } from '../../supabase/api.js';
+import { countArticleComments, countArticleLikes, getArticleBySlugDb } from '../../supabase/api.js';
 
 function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
@@ -12,13 +12,14 @@ export default function ArticleCard({ article, large = false }) {
   const [stats, setStats] = useState({ likes: 0, comments: 0 });
 
   useEffect(() => {
-    if (!isUuid(article.id)) {
-      setStats({ likes: 0, comments: 0 });
-      return;
+    let alive = true;
+    async function loadStats() {
+      const realId = isUuid(article.id) ? article.id : (await getArticleBySlugDb(article.slug))?.id;
+      if (!realId) return [0, 0];
+      return Promise.all([countArticleLikes(realId), countArticleComments(realId)]);
     }
 
-    let alive = true;
-    Promise.all([countArticleLikes(article.id), countArticleComments(article.id)])
+    loadStats()
       .then(([likes, comments]) => {
         if (alive) setStats({ likes, comments });
       })
@@ -29,7 +30,7 @@ export default function ArticleCard({ article, large = false }) {
     return () => {
       alive = false;
     };
-  }, [article.id]);
+  }, [article.id, article.slug]);
 
   return (
     <article className={`news-card overflow-hidden ${large ? 'md:grid md:grid-cols-[1.2fr_1fr]' : ''}`}>

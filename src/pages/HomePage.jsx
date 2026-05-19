@@ -28,6 +28,13 @@ export default function HomePage() {
       <section className="border-b border-gray-200 bg-white">
         <div className="container-page grid gap-8 py-8 lg:grid-cols-[1fr_330px]">
           <div className="space-y-6">
+            <div>
+              <p className="text-sm font-extrabold uppercase tracking-wide text-brand-red">Fresh Take Politics</p>
+              <h1 className="mt-2 text-3xl font-extrabold leading-tight text-gray-950 sm:text-5xl">THE FTP NEWS</h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-gray-600">
+                Fresh, clear, and independent political news with verified context for readers across India.
+              </p>
+            </div>
             <form onSubmit={submit} className="flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
               <span className="flex items-center px-4 text-gray-400">
                 <Search size={20} />

@@ -6,8 +6,8 @@ export default function TeamPage() {
   const team = (settings.teamText || '')
     .split('\n')
     .map((line) => {
-      const [name, role] = line.split('|').map((part) => part?.trim());
-      return name ? { name, role: role || 'Team member' } : null;
+      const [name, role, photoURL, link] = line.split('|').map((part) => part?.trim());
+      return name ? { name, role: role || 'Team member', photoURL, link } : null;
     })
     .filter(Boolean);
 
@@ -22,9 +22,18 @@ export default function TeamPage() {
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {team.map((member) => (
             <div key={member.name} className="news-card p-5">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-red text-xl font-extrabold text-white">{member.name.slice(0, 2)}</div>
+              {member.photoURL ? (
+                <img src={member.photoURL} alt="" className="h-20 w-20 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-red text-xl font-extrabold text-white">{member.name.slice(0, 2)}</div>
+              )}
               <h2 className="mt-4 font-extrabold">{member.name}</h2>
               <p className="mt-2 text-sm text-gray-600">{member.role}</p>
+              {member.link ? (
+                <a href={member.link} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-bold text-brand-blue hover:text-brand-red">
+                  View profile
+                </a>
+              ) : null}
             </div>
           ))}
         </div>

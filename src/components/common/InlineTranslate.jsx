@@ -37,7 +37,7 @@ async function translateChunk(text, target) {
   return (data?.[0] || []).map((part) => part?.[0] || '').join('');
 }
 
-async function translateLongText(text, target) {
+export async function translateLongText(text, target) {
   const chunks = [];
   for (let index = 0; index < text.length; index += 3500) {
     chunks.push(text.slice(index, index + 3500));
@@ -49,7 +49,7 @@ async function translateLongText(text, target) {
   return translated.join('\n\n');
 }
 
-export default function InlineTranslate({ html, onTranslated, onReset }) {
+export default function InlineTranslate({ html, title = '', excerpt = '', onTranslated, onTitleTranslated, onExcerptTranslated, onReset }) {
   const [target, setTarget] = useState('hi');
   const [busy, setBusy] = useState(false);
   const selectedLabel = useMemo(() => languages.find(([code]) => code === target)?.[1] || 'Hindi', [target]);
@@ -64,7 +64,13 @@ export default function InlineTranslate({ html, onTranslated, onReset }) {
       }
       const sourceText = htmlToText(html);
       if (!sourceText) throw new Error('No article text found.');
-      const translatedText = await translateLongText(sourceText, target);
+      const [translatedTitle, translatedExcerpt, translatedText] = await Promise.all([
+        title ? translateLongText(title, target) : Promise.resolve(''),
+        excerpt ? translateLongText(excerpt, target) : Promise.resolve(''),
+        translateLongText(sourceText, target),
+      ]);
+      if (translatedTitle) onTitleTranslated?.(translatedTitle);
+      if (translatedExcerpt) onExcerptTranslated?.(translatedExcerpt);
       onTranslated?.(textToHtml(translatedText));
       toast.success(`Article translated to ${selectedLabel}.`);
     } catch (error) {
