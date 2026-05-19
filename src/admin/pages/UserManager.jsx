@@ -3,8 +3,10 @@ import toast from 'react-hot-toast';
 import AdminTable from '../components/AdminTable.jsx';
 import { formatDate } from '../../utils/format.js';
 import { listProfiles, updateProfileAdmin } from '../../supabase/api.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 export default function UserManager() {
+  const { isSuperAdmin, currentUser } = useAuth();
   const [rows, setRows] = useState([]);
   const [term, setTerm] = useState('');
   const filtered = rows.filter((user) => [user.name, user.email, user.uid, user.role, user.status].join(' ').toLowerCase().includes(term.toLowerCase()));
@@ -16,6 +18,15 @@ export default function UserManager() {
   useEffect(load, []);
 
   async function updateUser(id, updates) {
+    if (updates.role && !isSuperAdmin) {
+      toast.error('Only superadmin can change user roles.');
+      return;
+    }
+    if (updates.role === 'superadmin' && rows.some((user) => user.role === 'superadmin' && user.id !== id)) {
+      toast.error('Only one superadmin is allowed.');
+      load();
+      return;
+    }
     try {
       const updated = await updateProfileAdmin(id, updates);
       setRows((users) => users.map((user) => (user.id === id ? updated : user)));
@@ -44,7 +55,13 @@ export default function UserManager() {
             key: 'role',
             label: 'Role',
             render: (row) => (
-              <select className="input min-w-32" value={row.role} onChange={(event) => updateUser(row.id, { role: event.target.value })}>
+              <select
+                className="input min-w-32"
+                value={row.role}
+                onChange={(event) => updateUser(row.id, { role: event.target.value })}
+                disabled={!isSuperAdmin || (row.role === 'superadmin' && row.id !== currentUser?.id)}
+                title={isSuperAdmin ? 'Change user role' : 'Only superadmin can change roles'}
+              >
                 <option value="user">user</option>
                 <option value="editor">editor</option>
                 <option value="admin">admin</option>

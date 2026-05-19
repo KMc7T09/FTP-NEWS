@@ -150,13 +150,18 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(
-    () => ({
+    () => {
+      const email = currentUser?.email?.toLowerCase();
+      const bootstrapSuperAdmin = bootstrapAdminEmails.includes(email);
+      const isSuperAdmin = profile?.role === 'superadmin' || bootstrapSuperAdmin;
+      return ({
       currentUser,
       profile,
       loading,
       authError,
-      isAdmin: ['admin', 'superadmin'].includes(profile?.role) || bootstrapAdminEmails.includes(currentUser?.email?.toLowerCase()),
-      isEditor: ['editor', 'admin', 'superadmin'].includes(profile?.role) || bootstrapAdminEmails.includes(currentUser?.email?.toLowerCase()),
+      isSuperAdmin,
+      isAdmin: ['admin', 'superadmin'].includes(profile?.role) || bootstrapSuperAdmin,
+      isEditor: ['editor', 'admin', 'superadmin'].includes(profile?.role) || bootstrapSuperAdmin,
       isBanned: profile?.status === 'banned',
       signup,
       login,
@@ -164,7 +169,8 @@ export function AuthProvider({ children }) {
       logout,
       resetPassword,
       refreshProfile: () => (currentUser ? withTimeout(loadProfile(currentUser), 'Profile refresh took too long.') : null),
-    }),
+    });
+    },
     [currentUser, profile, loading, authError],
   );
 
