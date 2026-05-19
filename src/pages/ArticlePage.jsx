@@ -223,6 +223,18 @@ export default function ArticlePage() {
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />
             <div className="prose-news" dangerouslySetInnerHTML={{ __html: translatedContent || article.content }} />
+            {(article.sourceName || article.sourceURL) && (
+              <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Source / Credit</p>
+                {article.sourceURL ? (
+                  <a href={article.sourceURL} target="_blank" rel="noreferrer" className="mt-2 inline-flex break-all text-sm font-bold text-brand-blue hover:text-brand-red">
+                    {article.sourceName || article.sourceURL}
+                  </a>
+                ) : (
+                  <p className="mt-2 text-sm font-semibold text-gray-700">{article.sourceName}</p>
+                )}
+              </div>
+            )}
             <AdSlot label="Article Bottom Ad Slot" position="article-bottom" className="my-8" />
 
             <section className="mt-10">

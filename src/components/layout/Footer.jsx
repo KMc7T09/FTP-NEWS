@@ -4,6 +4,7 @@ import useSettings from '../../hooks/useSettings.js';
 export default function Footer() {
   const settings = useSettings();
   const socials = Object.entries(settings.socialLinks || {}).filter(([, value]) => value);
+  const year = new Date().getFullYear();
 
   return (
     <footer className="mt-14 bg-gray-950 text-white">
@@ -43,6 +44,16 @@ export default function Footer() {
             ) : (
               <span>Add social handles from Settings</span>
             )}
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-white/10">
+        <div className="container-page flex flex-col gap-3 py-4 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>Copyright © {year} {settings.websiteName || 'THE FTP NEWS'}. All rights reserved.</p>
+          <div className="flex flex-wrap gap-4">
+            <Link to="/contact" className="hover:text-white">Contact</Link>
+            <Link to="/founder" className="hover:text-white">Founder</Link>
+            <Link to="/team" className="hover:text-white">Team</Link>
           </div>
         </div>
       </div>

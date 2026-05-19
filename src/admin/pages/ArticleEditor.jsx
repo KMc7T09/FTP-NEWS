@@ -20,6 +20,8 @@ const blank = {
   status: 'draft',
   isFeatured: false,
   isTrending: false,
+  sourceName: '',
+  sourceURL: '',
   metaTitle: '',
   metaDescription: '',
 };
@@ -123,6 +125,14 @@ export default function ArticleEditor() {
           <div>
             <label className="label">Featured Image URL</label>
             <input className="input mt-2" value={form.featuredImageURL} onChange={(event) => setField('featuredImageURL', event.target.value)} />
+          </div>
+          <div>
+            <label className="label">Source Name</label>
+            <input className="input mt-2" value={form.sourceName || ''} onChange={(event) => setField('sourceName', event.target.value)} placeholder="Official report, agency, website name" />
+          </div>
+          <div>
+            <label className="label">Source Link</label>
+            <input className="input mt-2" value={form.sourceURL || ''} onChange={(event) => setField('sourceURL', event.target.value)} placeholder="https://..." />
           </div>
           <label className="flex items-center gap-2 text-sm font-semibold">
             <input type="checkbox" checked={form.isFeatured} onChange={(event) => setField('isFeatured', event.target.checked)} /> Featured

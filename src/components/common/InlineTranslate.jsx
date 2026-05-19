@@ -20,13 +20,8 @@ function htmlToText(html = '') {
   return doc.body.textContent?.replace(/\s+/g, ' ').trim() || '';
 }
 
-function textToHtml(text = '') {
-  return text
-    .split(/\n{2,}|(?<=।)\s+|(?<=\.)\s+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => `<p>${line.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char])}</p>`)
-    .join('');
+function escapeHtml(text = '') {
+  return text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
 }
 
 async function translateChunk(text, target) {
@@ -39,14 +34,30 @@ async function translateChunk(text, target) {
 
 export async function translateLongText(text, target) {
   const chunks = [];
-  for (let index = 0; index < text.length; index += 3500) {
-    chunks.push(text.slice(index, index + 3500));
+  for (let index = 0; index < text.length; index += 2500) {
+    chunks.push(text.slice(index, index + 2500));
   }
   const translated = [];
   for (const chunk of chunks) {
     translated.push(await translateChunk(chunk, target));
   }
-  return translated.join('\n\n');
+  return translated.join(' ');
+}
+
+function getTranslatableNodes(html = '') {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const nodes = Array.from(doc.body.querySelectorAll('h2,h3,h4,p,li,blockquote')).filter((node) => node.textContent?.trim());
+  return { doc, nodes: nodes.length ? nodes : [doc.body] };
+}
+
+async function translateHtmlPreservingFormat(html, target) {
+  const { doc, nodes } = getTranslatableNodes(html);
+  for (const node of nodes) {
+    const original = node.textContent?.replace(/\s+/g, ' ').trim();
+    if (original) node.textContent = await translateLongText(original, target);
+  }
+  const output = doc.body.innerHTML.trim();
+  return output || `<p>${escapeHtml(await translateLongText(htmlToText(html), target))}</p>`;
 }
 
 export default function InlineTranslate({ html, title = '', excerpt = '', onTranslated, onTitleTranslated, onExcerptTranslated, onReset }) {
@@ -64,14 +75,14 @@ export default function InlineTranslate({ html, title = '', excerpt = '', onTran
       }
       const sourceText = htmlToText(html);
       if (!sourceText) throw new Error('No article text found.');
-      const [translatedTitle, translatedExcerpt, translatedText] = await Promise.all([
+      const [translatedTitle, translatedExcerpt, translatedHtml] = await Promise.all([
         title ? translateLongText(title, target) : Promise.resolve(''),
         excerpt ? translateLongText(excerpt, target) : Promise.resolve(''),
-        translateLongText(sourceText, target),
+        translateHtmlPreservingFormat(html, target),
       ]);
       if (translatedTitle) onTitleTranslated?.(translatedTitle);
       if (translatedExcerpt) onExcerptTranslated?.(translatedExcerpt);
-      onTranslated?.(textToHtml(translatedText));
+      onTranslated?.(translatedHtml);
       toast.success(`Article translated to ${selectedLabel}.`);
     } catch (error) {
       toast.error(error.message || 'Translation failed.');
