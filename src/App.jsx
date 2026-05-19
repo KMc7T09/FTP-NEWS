@@ -17,6 +17,7 @@ const FounderPage = lazy(() => import('./pages/FounderPage.jsx'));
 const TeamPage = lazy(() => import('./pages/TeamPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'));
 const SupabaseStatusPage = lazy(() => import('./pages/SupabaseStatusPage.jsx'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'));
@@ -60,6 +61,7 @@ export default function App() {
                 </GuestRoute>
               }
             />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route
               path="/profile"
               element={
