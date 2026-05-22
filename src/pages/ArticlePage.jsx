@@ -240,6 +240,14 @@ export default function ArticlePage() {
                 translatedTitle={translatedTitle}
                 translatedExcerpt={translatedExcerpt}
                 translatedHtml={translatedContent}
+                onTranslated={setTranslatedContent}
+                onTitleTranslated={setTranslatedTitle}
+                onExcerptTranslated={setTranslatedExcerpt}
+                onReset={() => {
+                  setTranslatedContent('');
+                  setTranslatedTitle('');
+                  setTranslatedExcerpt('');
+                }}
               />
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />

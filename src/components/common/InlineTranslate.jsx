@@ -50,7 +50,7 @@ function getTranslatableNodes(html = '') {
   return { doc, nodes: nodes.length ? nodes : [doc.body] };
 }
 
-async function translateHtmlPreservingFormat(html, target) {
+export async function translateHtmlPreservingFormat(html, target) {
   const { doc, nodes } = getTranslatableNodes(html);
   for (const node of nodes) {
     const original = node.textContent?.replace(/\s+/g, ' ').trim();
