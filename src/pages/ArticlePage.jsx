@@ -1,4 +1,4 @@
-import { Bookmark, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Bookmark, Flag, Heart, MessageCircle, Share2, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -6,12 +6,13 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { formatDate, readTime } from '../utils/format.js';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
+import ArticleListenControls from '../components/common/ArticleListenControls.jsx';
 import InlineTranslate from '../components/common/InlineTranslate.jsx';
 import Seo from '../components/common/Seo.jsx';
+import LoadingScreen from '../components/ui/LoadingScreen.jsx';
 import {
   countArticleLikes,
   countArticleComments,
-  ensureArticleInSupabase,
   getArticleBySlugDb,
   hasUserBookmarked,
   hasUserLiked,
@@ -26,7 +27,7 @@ import { getModerationReason, hasVulgarContent } from '../utils/moderation.js';
 
 export default function ArticlePage() {
   const { slug } = useParams();
-  const { currentUser, profile, isBanned, isEditor, isAdmin } = useAuth();
+  const { currentUser, profile, isBanned, loading } = useAuth();
   const [article, setArticle] = useState(null);
   const [related, setRelated] = useState([]);
   const [comments, setComments] = useState([]);
@@ -166,6 +167,28 @@ export default function ArticlePage() {
     return <div className="container-page py-16 text-center text-gray-600">Article not found or not available.</div>;
   }
 
+  if (loading) return <LoadingScreen />;
+
+  if (!currentUser) {
+    return (
+      <>
+        <Seo title={`${article.title} | Join THE FTP NEWS`} description={article.excerpt} image={article.featuredImageURL} type="article" />
+        <section className="container-page flex min-h-[70vh] items-center justify-center py-12">
+          <div className="news-card max-w-xl p-6 text-center">
+            <UserPlus className="mx-auto text-brand-red" size={36} />
+            <h1 className="mt-4 text-3xl font-extrabold text-gray-950">Join to read this article</h1>
+            <p className="mt-3 text-sm leading-6 text-gray-600">
+              Free account bana kar full article padho, Indian languages me suno, like karo, bookmark karo aur comment discussion join karo.
+            </p>
+            <Link to="/login" className="btn-primary mt-5">
+              <UserPlus size={16} /> Join Now
+            </Link>
+          </div>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <Seo title={article.metaTitle || article.title} description={article.metaDescription || article.excerpt} image={article.featuredImageURL} type="article" />
@@ -196,7 +219,7 @@ export default function ArticlePage() {
                 </button>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <InlineTranslate
                 html={article.content}
                 title={article.title}
@@ -209,6 +232,14 @@ export default function ArticlePage() {
                   setTranslatedTitle('');
                   setTranslatedExcerpt('');
                 }}
+              />
+              <ArticleListenControls
+                title={article.title}
+                excerpt={article.excerpt}
+                html={article.content}
+                translatedTitle={translatedTitle}
+                translatedExcerpt={translatedExcerpt}
+                translatedHtml={translatedContent}
               />
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />

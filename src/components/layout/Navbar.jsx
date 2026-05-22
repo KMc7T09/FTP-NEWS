@@ -1,4 +1,4 @@
-import { Bookmark, LogOut, Menu, Search, User } from 'lucide-react';
+import { LogOut, Menu, Search, User, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import useSettings from '../../hooks/useSettings.js';
@@ -70,7 +70,7 @@ export default function Navbar() {
             </>
           ) : (
             <Link to="/login" className="btn-primary px-3">
-              <Bookmark size={16} /> Login
+              <UserPlus size={16} /> Join
             </Link>
           )}
         </div>
