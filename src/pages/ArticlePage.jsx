@@ -7,6 +7,7 @@ import { formatDate, readTime } from '../utils/format.js';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
 import ArticleListenControls from '../components/common/ArticleListenControls.jsx';
+import ArticleSummaryControls from '../components/common/ArticleSummaryControls.jsx';
 import InlineTranslate from '../components/common/InlineTranslate.jsx';
 import Seo from '../components/common/Seo.jsx';
 import LoadingScreen from '../components/ui/LoadingScreen.jsx';
@@ -248,6 +249,14 @@ export default function ArticlePage() {
                   setTranslatedTitle('');
                   setTranslatedExcerpt('');
                 }}
+              />
+              <ArticleSummaryControls
+                title={article.title}
+                excerpt={article.excerpt}
+                html={article.content}
+                translatedTitle={translatedTitle}
+                translatedExcerpt={translatedExcerpt}
+                translatedHtml={translatedContent}
               />
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />
