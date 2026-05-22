@@ -21,16 +21,16 @@ function htmlToText(html = '') {
   return doc.body.textContent?.replace(/\s+/g, ' ').trim() || '';
 }
 
-function splitSpeechText(text = '') {
+function splitSpeechText(text = '', maxLength = 220) {
   const cleanText = text.replace(/\s+/g, ' ').trim();
   if (!cleanText) return [];
-  const sentences = cleanText.match(/[^.!?।]+[.!?।]?/g) || [cleanText];
+  const sentences = cleanText.match(/[^.!?]+[.!?]?/g) || [cleanText];
   const chunks = [];
   let current = '';
 
   sentences.forEach((sentence) => {
     const next = `${current} ${sentence}`.trim();
-    if (next.length > 220 && current) {
+    if (next.length > maxLength && current) {
       chunks.push(current);
       current = sentence.trim();
     } else {
@@ -39,7 +39,14 @@ function splitSpeechText(text = '') {
   });
 
   if (current) chunks.push(current);
-  return chunks;
+  return chunks.flatMap((chunk) => {
+    if (chunk.length <= maxLength) return [chunk];
+    const pieces = [];
+    for (let index = 0; index < chunk.length; index += maxLength) {
+      pieces.push(chunk.slice(index, index + maxLength));
+    }
+    return pieces;
+  });
 }
 
 function waitForVoices() {
@@ -67,7 +74,7 @@ function chooseVoice(voices, langCode) {
   );
 }
 
-export default function ArticleListenControls({ title, excerpt, html, translatedTitle, translatedExcerpt, translatedHtml }) {
+export default function ArticleListenControls({ title, excerpt, html }) {
   const [target, setTarget] = useState('en');
   const [busy, setBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -75,7 +82,8 @@ export default function ArticleListenControls({ title, excerpt, html, translated
   const queueRef = useRef([]);
   const voiceRef = useRef(null);
   const activeRef = useRef(false);
-  const utteranceRef = useRef(null);
+  const audioRef = useRef(null);
+  const modeRef = useRef('speech');
   const lang = useMemo(() => languages.find(([code]) => code === target) || languages[0], [target]);
 
   useEffect(() => {
@@ -83,22 +91,23 @@ export default function ArticleListenControls({ title, excerpt, html, translated
   }, []);
 
   async function getSpeechText() {
-    const visibleTitle = translatedTitle || title || '';
-    const visibleExcerpt = translatedExcerpt || excerpt || '';
-    const visibleBody = htmlToText(translatedHtml || html);
-    const text = [visibleTitle, visibleExcerpt, visibleBody].filter(Boolean).join('. ');
-    if (target === 'en' || translatedHtml) return text;
+    const text = [title || '', excerpt || '', htmlToText(html)].filter(Boolean).join('. ');
+    if (target === 'en') return text;
     return translateLongText(text, target);
   }
 
-  function speakNextChunk() {
+  function finishAudio() {
+    audioRef.current = null;
+    activeRef.current = false;
+    setSpeaking(false);
+    setPaused(false);
+  }
+
+  function playNextBrowserChunk() {
     if (!activeRef.current) return;
     const nextText = queueRef.current.shift();
     if (!nextText) {
-      utteranceRef.current = null;
-      activeRef.current = false;
-      setSpeaking(false);
-      setPaused(false);
+      finishAudio();
       return;
     }
 
@@ -108,34 +117,56 @@ export default function ArticleListenControls({ title, excerpt, html, translated
     utterance.rate = 0.92;
     utterance.pitch = 1;
     utterance.volume = 1;
-    utterance.onend = speakNextChunk;
+    utterance.onend = playNextBrowserChunk;
     utterance.onerror = () => {
-      activeRef.current = false;
-      setSpeaking(false);
-      setPaused(false);
+      finishAudio();
       toast.error('Audio could not play on this device/browser.');
     };
-    utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
   }
 
-  async function play() {
-    if (!('speechSynthesis' in window)) {
-      toast.error('Audio reading is not supported in this browser.');
+  function playNextIndianLanguageChunk() {
+    if (!activeRef.current) return;
+    const nextText = queueRef.current.shift();
+    if (!nextText) {
+      finishAudio();
       return;
     }
+
+    const audio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${target}&q=${encodeURIComponent(nextText)}`);
+    audioRef.current = audio;
+    audio.onended = playNextIndianLanguageChunk;
+    audio.onerror = () => {
+      finishAudio();
+      toast.error('This language audio is blocked here. Try Chrome or Edge.');
+    };
+    audio.play().catch(() => {
+      finishAudio();
+      toast.error('Tap Play again or allow audio in this browser.');
+    });
+  }
+
+  async function play() {
     setBusy(true);
     try {
       stop();
-      const voices = await waitForVoices();
-      voiceRef.current = chooseVoice(voices, lang[2]);
       const text = await getSpeechText();
-      queueRef.current = splitSpeechText(text);
+      queueRef.current = splitSpeechText(text, target === 'en' ? 220 : 170);
       if (!queueRef.current.length) throw new Error('No article text found for audio.');
       activeRef.current = true;
       setSpeaking(true);
       setPaused(false);
-      speakNextChunk();
+
+      if (target === 'en') {
+        if (!('speechSynthesis' in window)) throw new Error('Audio reading is not supported in this browser.');
+        modeRef.current = 'speech';
+        const voices = await waitForVoices();
+        voiceRef.current = chooseVoice(voices, lang[2]);
+        playNextBrowserChunk();
+      } else {
+        modeRef.current = 'audio';
+        playNextIndianLanguageChunk();
+      }
       toast.success(`Playing article in ${lang[1]}.`);
     } catch (error) {
       toast.error(error.message || 'Could not start audio.');
@@ -145,12 +176,23 @@ export default function ArticleListenControls({ title, excerpt, html, translated
   }
 
   function pauseResume() {
-    if (!window.speechSynthesis) return;
-    if (window.speechSynthesis.paused) {
+    if (modeRef.current === 'audio') {
+      if (!audioRef.current) return;
+      if (audioRef.current.paused) {
+        audioRef.current.play();
+        setPaused(false);
+      } else {
+        audioRef.current.pause();
+        setPaused(true);
+      }
+      return;
+    }
+
+    if (window.speechSynthesis?.paused) {
       window.speechSynthesis.resume();
       setPaused(false);
     } else {
-      window.speechSynthesis.pause();
+      window.speechSynthesis?.pause();
       setPaused(true);
     }
   }
@@ -158,7 +200,8 @@ export default function ArticleListenControls({ title, excerpt, html, translated
   function stop() {
     activeRef.current = false;
     queueRef.current = [];
-    utteranceRef.current = null;
+    audioRef.current?.pause();
+    audioRef.current = null;
     window.speechSynthesis?.cancel();
     setSpeaking(false);
     setPaused(false);
