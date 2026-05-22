@@ -92,6 +92,8 @@ export default function ArticleListenControls({
   const queueRef = useRef([]);
   const voiceRef = useRef(null);
   const activeRef = useRef(false);
+  const audioRef = useRef(null);
+  const modeRef = useRef('speech');
   const lang = useMemo(() => languages.find(([code]) => code === target) || languages[0], [target]);
 
   useEffect(() => {
@@ -157,6 +159,28 @@ export default function ArticleListenControls({
     window.speechSynthesis.speak(utterance);
   }
 
+  function playNextFunctionAudioChunk() {
+    if (!activeRef.current) return;
+    const nextText = queueRef.current.shift();
+    if (!nextText) {
+      finishReading();
+      return;
+    }
+
+    setActiveText(nextText);
+    const audio = new Audio(`/.netlify/functions/tts?tl=${target}&q=${encodeURIComponent(nextText)}`);
+    audioRef.current = audio;
+    audio.onended = playNextFunctionAudioChunk;
+    audio.onerror = () => {
+      finishReading();
+      toast.error('Odia audio could not load. Deploy latest code to Netlify and try again.');
+    };
+    audio.play().catch(() => {
+      finishReading();
+      toast.error('Tap Play again or allow audio in this browser.');
+    });
+  }
+
   async function play() {
     if (!('speechSynthesis' in window)) {
       toast.error('Audio reading is not supported in this browser.');
@@ -166,20 +190,23 @@ export default function ArticleListenControls({
     setBusy(true);
     try {
       stop();
-      const voices = await waitForVoices();
-      voiceRef.current = chooseVoice(voices, lang[2]);
-      if (!voiceRef.current) {
-        throw new Error(`${lang[1]} voice is not installed in this browser/device. Install that language voice or test on mobile Chrome.`);
-      }
-
       const { speechText } = await translateArticleForReading();
-      queueRef.current = splitSpeechText(speechText, 210);
+      queueRef.current = splitSpeechText(speechText, target === 'en' ? 210 : 170);
       if (!queueRef.current.length) throw new Error('No article text found for audio.');
 
       activeRef.current = true;
       setSpeaking(true);
       setPaused(false);
-      speakNextChunk();
+      if (target === 'en') {
+        modeRef.current = 'speech';
+        const voices = await waitForVoices();
+        voiceRef.current = chooseVoice(voices, lang[2]);
+        if (!voiceRef.current) throw new Error('English voice is not installed in this browser/device.');
+        speakNextChunk();
+      } else {
+        modeRef.current = 'function-audio';
+        playNextFunctionAudioChunk();
+      }
       toast.success(`Playing and highlighting in ${lang[1]}.`);
     } catch (error) {
       toast.error(error.message || 'Could not start audio.');
@@ -189,6 +216,18 @@ export default function ArticleListenControls({
   }
 
   function pauseResume() {
+    if (modeRef.current === 'function-audio') {
+      if (!audioRef.current) return;
+      if (audioRef.current.paused) {
+        audioRef.current.play();
+        setPaused(false);
+      } else {
+        audioRef.current.pause();
+        setPaused(true);
+      }
+      return;
+    }
+
     if (window.speechSynthesis?.paused) {
       window.speechSynthesis.resume();
       setPaused(false);
@@ -201,6 +240,8 @@ export default function ArticleListenControls({
   function stop() {
     activeRef.current = false;
     queueRef.current = [];
+    audioRef.current?.pause();
+    audioRef.current = null;
     window.speechSynthesis?.cancel();
     setSpeaking(false);
     setPaused(false);
