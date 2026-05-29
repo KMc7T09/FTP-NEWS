@@ -1,14 +1,17 @@
 import { Mail, MapPin, MessageSquare, Send } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Seo from '../components/common/Seo.jsx';
 import useSettings from '../hooks/useSettings.js';
 import { saveContactMessage } from '../supabase/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const initialForm = { name: '', email: '', type: 'general', subject: '', message: '' };
 
 export default function ContactPage() {
   const settings = useSettings();
+  const { currentUser, profile } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [busy, setBusy] = useState(false);
 
@@ -18,13 +21,20 @@ export default function ContactPage() {
 
   async function submit(event) {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      toast.error('Name, email, and message are required.');
+    if (!currentUser) {
+      toast.error('Please join before sending a message.');
+      return;
+    }
+    if (!form.name.trim() || !form.message.trim()) {
+      toast.error('Name and message are required.');
       return;
     }
     setBusy(true);
     try {
-      await saveContactMessage(form);
+      await saveContactMessage({
+        ...form,
+        email: currentUser.email || currentUser.phone || profile?.email || '',
+      });
       setForm(initialForm);
       toast.success('Message sent to THE FTP NEWS admin panel.');
     } catch (error) {
@@ -46,6 +56,16 @@ export default function ContactPage() {
           </p>
         </div>
 
+        {!currentUser ? (
+          <div className="news-card mt-8 max-w-3xl p-5">
+            <h2 className="text-xl font-extrabold">Join required for contact messages</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Fake email avoid karne ke liye contact form account email/phone se bind hai. Full article read karna free hai, lekin contact message, comment, like aur bookmark ke liye join required hai.
+            </p>
+            <Link to="/login" className="btn-primary mt-4">Join Now</Link>
+          </div>
+        ) : null}
+
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
           <form onSubmit={submit} className="news-card grid gap-4 p-5 md:grid-cols-2">
             <div>
@@ -54,7 +74,8 @@ export default function ContactPage() {
             </div>
             <div>
               <label className="label">Email</label>
-              <input className="input mt-2" type="email" value={form.email} onChange={(event) => setField('email', event.target.value)} placeholder="you@example.com" />
+              <input className="input mt-2" value={currentUser?.email || currentUser?.phone || profile?.email || ''} readOnly />
+              <p className="mt-2 text-xs text-gray-500">This comes from your joined account, so users cannot submit fake contact email here.</p>
             </div>
             <div>
               <label className="label">Message Type</label>

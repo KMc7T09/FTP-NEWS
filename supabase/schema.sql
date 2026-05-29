@@ -107,6 +107,19 @@ create table if not exists public.contact_messages (
   updated_at timestamptz default now()
 );
 
+create table if not exists public.page_visits (
+  id uuid primary key default gen_random_uuid(),
+  visitor_id text not null,
+  path text not null,
+  title text default '',
+  referrer text default '',
+  user_agent text default '',
+  language text default '',
+  screen text default '',
+  user_id uuid references auth.users(id) on delete set null,
+  created_at timestamptz default now()
+);
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -117,6 +130,20 @@ as $$
     select 1 from public.profiles
     where id = auth.uid()
     and role in ('admin', 'superadmin')
+    and status = 'active'
+  );
+$$;
+
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid()
+    and role = 'superadmin'
     and status = 'active'
   );
 $$;
@@ -206,6 +233,7 @@ alter table public.likes enable row level security;
 alter table public.ads enable row level security;
 alter table public.settings enable row level security;
 alter table public.contact_messages enable row level security;
+alter table public.page_visits enable row level security;
 
 drop policy if exists "profiles read own or admin" on public.profiles;
 create policy "profiles read own or admin" on public.profiles
@@ -282,6 +310,14 @@ for select using (public.is_admin());
 drop policy if exists "contact admin update" on public.contact_messages;
 create policy "contact admin update" on public.contact_messages
 for update using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "visits public insert" on public.page_visits;
+create policy "visits public insert" on public.page_visits
+for insert with check (true);
+
+drop policy if exists "visits superadmin read" on public.page_visits;
+create policy "visits superadmin read" on public.page_visits
+for select using (public.is_superadmin());
 
 insert into public.settings (id, data)
 values (

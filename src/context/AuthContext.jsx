@@ -22,7 +22,7 @@ function userToProfile(user, extra = {}) {
     id: user.id,
     uid: user.id,
     name: extra.name || user.user_metadata?.name || user.user_metadata?.full_name || '',
-    email: user.email || '',
+    email: user.email || user.phone || '',
     photoURL: user.user_metadata?.avatar_url || '',
     role: 'user',
     status: 'active',
@@ -141,6 +141,20 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
+  async function sendPhoneOtp(phone) {
+    if (!supabaseReady) throw new Error('Supabase is not configured.');
+    const { error } = await supabase.auth.signInWithOtp({ phone });
+    if (error) throw error;
+  }
+
+  async function verifyPhoneOtp(phone, token) {
+    if (!supabaseReady) throw new Error('Supabase is not configured.');
+    const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+    if (error) throw error;
+    if (data.user) await withTimeout(loadProfile(data.user), 'Profile loading took too long.');
+    return data.user;
+  }
+
   async function logout() {
     if (!supabaseReady) return;
     await supabase.auth.signOut();
@@ -171,6 +185,8 @@ export function AuthProvider({ children }) {
       signup,
       login,
       loginWithGoogle,
+      sendPhoneOtp,
+      verifyPhoneOtp,
       logout,
       resetPassword,
       refreshProfile: () => (currentUser ? withTimeout(loadProfile(currentUser), 'Profile refresh took too long.') : null),

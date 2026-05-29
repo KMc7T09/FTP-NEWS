@@ -35,6 +35,7 @@ const CommentManager = lazy(() => import('./admin/pages/CommentManager.jsx'));
 const AdManager = lazy(() => import('./admin/pages/AdManager.jsx'));
 const SettingsPage = lazy(() => import('./admin/pages/SettingsPage.jsx'));
 const ContactMessageManager = lazy(() => import('./admin/pages/ContactMessageManager.jsx'));
+const VisitorAnalytics = lazy(() => import('./admin/pages/VisitorAnalytics.jsx'));
 
 export default function App() {
   if (!supabaseReady) return <SupabaseSetupNotice />;
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="users" element={<ProtectedRoute roles={['admin', 'superadmin']}><UserManager /></ProtectedRoute>} />
             <Route path="comments" element={<ProtectedRoute roles={['admin', 'superadmin']}><CommentManager /></ProtectedRoute>} />
             <Route path="contact-messages" element={<ProtectedRoute roles={['admin', 'superadmin']}><ContactMessageManager /></ProtectedRoute>} />
+            <Route path="visitors" element={<ProtectedRoute roles={['superadmin']}><VisitorAnalytics /></ProtectedRoute>} />
             <Route path="ads" element={<ProtectedRoute roles={['admin', 'superadmin']}><AdManager /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute roles={['admin', 'superadmin']}><SettingsPage /></ProtectedRoute>} />
           </Route>

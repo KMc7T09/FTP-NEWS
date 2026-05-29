@@ -369,3 +369,26 @@ export async function updateContactMessage(id, updates) {
   if (error) throw error;
   return data;
 }
+
+export async function recordPageVisit(visit) {
+  const client = requireSupabase();
+  const payload = {
+    visitor_id: visit.visitorId,
+    path: visit.path,
+    title: visit.title || '',
+    referrer: visit.referrer || '',
+    user_agent: visit.userAgent || '',
+    language: visit.language || '',
+    screen: visit.screen || '',
+    user_id: visit.userId || null,
+  };
+  const { error } = await client.from('page_visits').insert(payload);
+  if (error) throw error;
+}
+
+export async function listPageVisits({ limit = 200 } = {}) {
+  const client = requireSupabase();
+  const { data, error } = await client.from('page_visits').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return data || [];
+}

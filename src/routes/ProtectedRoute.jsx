@@ -46,7 +46,7 @@ function AccessDenied({ user, profile }) {
 }
 
 export default function ProtectedRoute({ children, roles }) {
-  const { currentUser, profile, loading, authError, isAdmin } = useAuth();
+  const { currentUser, profile, loading, authError, isAdmin, isEditor, isSuperAdmin } = useAuth();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
@@ -62,6 +62,11 @@ export default function ProtectedRoute({ children, roles }) {
     );
   }
   if (!currentUser) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  if (roles?.length && !roles.includes(profile?.role) && !isAdmin) return <AccessDenied user={currentUser} profile={profile} />;
+  const allowed = !roles?.length
+    || roles.includes(profile?.role)
+    || (roles.includes('superadmin') && isSuperAdmin)
+    || (roles.includes('admin') && isAdmin)
+    || (roles.includes('editor') && isEditor);
+  if (!allowed) return <AccessDenied user={currentUser} profile={profile} />;
   return children;
 }

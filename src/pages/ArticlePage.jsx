@@ -1,4 +1,4 @@
-import { Bookmark, Flag, Heart, MessageCircle, Share2, UserPlus } from 'lucide-react';
+import { Bookmark, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -170,26 +170,6 @@ export default function ArticlePage() {
 
   if (loading) return <LoadingScreen />;
 
-  if (!currentUser) {
-    return (
-      <>
-        <Seo title={`${article.title} | Join THE FTP NEWS`} description={article.excerpt} image={article.featuredImageURL} type="article" />
-        <section className="container-page flex min-h-[70vh] items-center justify-center py-12">
-          <div className="news-card max-w-xl p-6 text-center">
-            <UserPlus className="mx-auto text-brand-red" size={36} />
-            <h1 className="mt-4 text-3xl font-extrabold text-gray-950">Join to read this article</h1>
-            <p className="mt-3 text-sm leading-6 text-gray-600">
-              Free account bana kar full article padho, Indian languages me suno, like karo, bookmark karo aur comment discussion join karo.
-            </p>
-            <Link to="/login" className="btn-primary mt-5">
-              <UserPlus size={16} /> Join Now
-            </Link>
-          </div>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <Seo title={article.metaTitle || article.title} description={article.metaDescription || article.excerpt} image={article.featuredImageURL} type="article" />
@@ -281,10 +261,19 @@ export default function ArticlePage() {
                 Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{commentCount}</span>
               </h2>
               <form onSubmit={submitComment} className="news-card mb-6 p-4">
-                <textarea className="input min-h-28" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={isBanned ? 'Banned users cannot comment.' : 'Join the discussion'} disabled={isBanned} />
-                <button className="btn-primary mt-3" disabled={isBanned}>
-                  Post Comment
-                </button>
+                {currentUser ? (
+                  <>
+                    <textarea className="input min-h-28" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={isBanned ? 'Banned users cannot comment.' : 'Join the discussion'} disabled={isBanned} />
+                    <button className="btn-primary mt-3" disabled={isBanned}>
+                      Post Comment
+                    </button>
+                  </>
+                ) : (
+                  <div className="rounded-lg bg-gray-50 p-4">
+                    <p className="text-sm font-semibold text-gray-700">You can read the full article without joining. Join only if you want to comment, like, bookmark, or report.</p>
+                    <Link to="/login" className="btn-primary mt-3">Join to Comment</Link>
+                  </div>
+                )}
               </form>
               <div className="space-y-4">
                 {comments.map((item) => (

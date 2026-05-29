@@ -1,4 +1,4 @@
-import { Mail } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,9 +8,12 @@ import Seo from '../components/common/Seo.jsx';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { login, loginWithGoogle, resetPassword } = useAuth();
+  const { login, loginWithGoogle, resetPassword, sendPhoneOtp, verifyPhoneOtp } = useAuth();
 
   async function submit(event) {
     event.preventDefault();
@@ -31,12 +34,40 @@ export default function LoginPage() {
     toast.success('Password reset email sent.');
   }
 
+  async function sendOtp(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await sendPhoneOtp(phone);
+      setOtpSent(true);
+      toast.success('OTP sent to phone.');
+    } catch (error) {
+      toast.error(error.message || 'Phone login is not enabled in Supabase.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyOtp(event) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await verifyPhoneOtp(phone, otp);
+      navigate('/profile');
+    } catch (error) {
+      toast.error(error.message || 'OTP verification failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <Seo title="Login | FTP News / KMC News Portal" />
       <section className="container-page flex min-h-[70vh] items-center justify-center py-12">
-        <form onSubmit={submit} className="news-card w-full max-w-md p-6">
-          <h1 className="text-2xl font-extrabold">Login</h1>
+        <div className="grid w-full max-w-5xl gap-6 md:grid-cols-2">
+        <form onSubmit={submit} className="news-card p-6">
+          <h1 className="text-2xl font-extrabold">Join / Login</h1>
           <label className="label mt-5 block">Email</label>
           <input className="input mt-2" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           <label className="label mt-4 block">Password</label>
@@ -54,6 +85,22 @@ export default function LoginPage() {
             New here? <Link to="/signup" className="font-bold text-brand-red">Create account</Link>
           </p>
         </form>
+        <form onSubmit={otpSent ? verifyOtp : sendOtp} className="news-card p-6">
+          <h2 className="text-2xl font-extrabold">Join with Phone</h2>
+          <p className="mt-3 text-sm leading-6 text-gray-600">Use international format, example: +919876543210. Phone login works after SMS provider is enabled in Supabase.</p>
+          <label className="label mt-5 block">Phone Number</label>
+          <input className="input mt-2" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91..." required />
+          {otpSent ? (
+            <>
+              <label className="label mt-4 block">OTP</label>
+              <input className="input mt-2" value={otp} onChange={(event) => setOtp(event.target.value)} placeholder="Enter OTP" required />
+            </>
+          ) : null}
+          <button className="btn-primary mt-5 w-full" disabled={busy}>
+            <Phone size={16} /> {otpSent ? 'Verify OTP' : 'Send OTP'}
+          </button>
+        </form>
+        </div>
       </section>
     </>
   );

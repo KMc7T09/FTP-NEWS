@@ -1,4 +1,4 @@
-import { BarChart3, FileText, Inbox, LayoutDashboard, MessageSquare, Newspaper, Settings, ShieldCheck, Tag, Users } from 'lucide-react';
+import { BarChart3, Eye, FileText, Inbox, LayoutDashboard, MessageSquare, Newspaper, Settings, ShieldCheck, Tag, Users } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -9,13 +9,14 @@ const links = [
   ['Users', '/admin/users', Users, 'admin'],
   ['Comments', '/admin/comments', MessageSquare, 'admin'],
   ['Contact Inbox', '/admin/contact-messages', Inbox, 'admin'],
+  ['Visitors', '/admin/visitors', Eye, 'superadmin'],
   ['Ads', '/admin/ads', BarChart3, 'admin'],
   ['Settings', '/admin/settings', Settings, 'admin'],
 ];
 
 export default function AdminLayout() {
-  const { isAdmin } = useAuth();
-  const visibleLinks = links.filter(([, , , required]) => !required || isAdmin);
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const visibleLinks = links.filter(([, , , required]) => !required || (required === 'superadmin' ? isSuperAdmin : isAdmin));
 
   return (
     <div className="min-h-screen bg-gray-100 lg:grid lg:grid-cols-[260px_1fr]">
