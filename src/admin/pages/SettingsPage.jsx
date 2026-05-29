@@ -73,6 +73,10 @@ export default function SettingsPage() {
           <input className="input mt-2" value={form.founderTitle || ''} onChange={(event) => setField('founderTitle', event.target.value)} />
         </div>
         <div>
+          <label className="label">Author Name</label>
+          <input className="input mt-2" value={form.authorName || ''} onChange={(event) => setField('authorName', event.target.value)} placeholder="R.C. Khotei" />
+        </div>
+        <div>
           <label className="label">Founder Photo URL</label>
           <input className="input mt-2" value={form.founderPhotoURL || ''} onChange={(event) => setField('founderPhotoURL', event.target.value)} placeholder="Paste founder image URL" />
         </div>

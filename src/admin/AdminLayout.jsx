@@ -1,4 +1,4 @@
-import { BarChart3, FileText, LayoutDashboard, MessageSquare, Newspaper, Settings, ShieldCheck, Tag, Users } from 'lucide-react';
+import { BarChart3, FileText, Inbox, LayoutDashboard, MessageSquare, Newspaper, Settings, ShieldCheck, Tag, Users } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -8,6 +8,7 @@ const links = [
   ['Categories', '/admin/categories', Tag, 'admin'],
   ['Users', '/admin/users', Users, 'admin'],
   ['Comments', '/admin/comments', MessageSquare, 'admin'],
+  ['Contact Inbox', '/admin/contact-messages', Inbox, 'admin'],
   ['Ads', '/admin/ads', BarChart3, 'admin'],
   ['Settings', '/admin/settings', Settings, 'admin'],
 ];

@@ -24,8 +24,9 @@ export default function Footer() {
           </div>
         </div>
         <div>
-          <h3 className="font-bold">Contact</h3>
+          <h3 className="font-bold">Trust</h3>
           <div className="mt-3 grid gap-2 text-sm text-gray-300">
+            <Link to="/about" className="hover:text-white">About</Link>
             <Link to="/contact" className="hover:text-white">Contact</Link>
             <Link to="/founder" className="hover:text-white">Founder</Link>
             <Link to="/team" className="hover:text-white">Team</Link>
@@ -51,9 +52,10 @@ export default function Footer() {
         <div className="container-page flex flex-col gap-3 py-4 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
           <p>Copyright © {year} {settings.websiteName || 'THE FTP NEWS'}. All rights reserved.</p>
           <div className="flex flex-wrap gap-4">
-            <Link to="/contact" className="hover:text-white">Contact</Link>
-            <Link to="/founder" className="hover:text-white">Founder</Link>
-            <Link to="/team" className="hover:text-white">Team</Link>
+            <Link to="/privacy-policy" className="hover:text-white">Privacy</Link>
+            <Link to="/terms" className="hover:text-white">Terms</Link>
+            <Link to="/editorial-policy" className="hover:text-white">Editorial Policy</Link>
+            <Link to="/disclaimer" className="hover:text-white">Disclaimer</Link>
           </div>
         </div>
       </div>

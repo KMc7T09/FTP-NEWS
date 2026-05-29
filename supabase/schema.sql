@@ -94,6 +94,19 @@ create table if not exists public.settings (
   updated_at timestamptz default now()
 );
 
+create table if not exists public.contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  name text default '',
+  email text default '',
+  subject text default '',
+  message text not null,
+  type text default 'general' check (type in ('general', 'news_tip', 'correction', 'partnership', 'advertising')),
+  status text default 'new' check (status in ('new', 'read', 'resolved', 'spam')),
+  admin_note text default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -192,6 +205,7 @@ alter table public.bookmarks enable row level security;
 alter table public.likes enable row level security;
 alter table public.ads enable row level security;
 alter table public.settings enable row level security;
+alter table public.contact_messages enable row level security;
 
 drop policy if exists "profiles read own or admin" on public.profiles;
 create policy "profiles read own or admin" on public.profiles
@@ -257,10 +271,22 @@ create policy "settings public read" on public.settings for select using (true);
 drop policy if exists "settings admin write" on public.settings;
 create policy "settings admin write" on public.settings for all using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "contact public insert" on public.contact_messages;
+create policy "contact public insert" on public.contact_messages
+for insert with check (true);
+
+drop policy if exists "contact admin read" on public.contact_messages;
+create policy "contact admin read" on public.contact_messages
+for select using (public.is_admin());
+
+drop policy if exists "contact admin update" on public.contact_messages;
+create policy "contact admin update" on public.contact_messages
+for update using (public.is_admin()) with check (public.is_admin());
+
 insert into public.settings (id, data)
 values (
   'site',
-  '{"websiteName":"FTP NEWS","footerText":"Fresh Take Politics - independent reporting, clear context, and verified updates.","contactEmail":"newsdesk@example.com","defaultSeoTitle":"FTP NEWS","defaultSeoDescription":"Fresh Take Politics, latest news, analysis, and public updates.","socialLinks":{"facebook":"","x":"","instagram":"","youtube":"","whatsapp":"","telegram":""},"logoURL":""}'::jsonb
+  '{"websiteName":"THE FTP NEWS","footerText":"Fresh Take Politics - independent reporting, clear context, and verified updates from Odisha for readers across India.","contactEmail":"kubulukhotei@gmail.com","contactAddress":"Odisha, India","defaultSeoTitle":"THE FTP NEWS","defaultSeoDescription":"THE FTP NEWS means Fresh Take Politics: independent political news, explainers, analysis, and public updates from Odisha and India.","founderName":"KMC7T09","founderTitle":"Founder, Full Stack Developer and Student","founderBio":"KMC7T09 is the founder of THE FTP NEWS, a student and full stack developer from Odisha, India. FTP means Fresh Take Politics. The mission is to build an independent, clear, and reader-first news platform that explains politics and public issues in simple language for people across India.\n\nAuthor name: R.C. Khotei.","authorName":"R.C. Khotei","teamText":"Editorial Desk | News verification and publishing |  | \nPolitics Desk | Fresh Take Politics coverage |  | \nCommunity Desk | Reader tips, corrections, and feedback |  | ","socialLinks":{"facebook":"","x":"","instagram":"","youtube":"","whatsapp":"","telegram":""},"logoURL":""}'::jsonb
 )
 on conflict (id) do nothing;
 

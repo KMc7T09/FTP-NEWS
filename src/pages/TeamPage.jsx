@@ -13,11 +13,12 @@ export default function TeamPage() {
 
   return (
     <>
-      <Seo title="Team | FTP NEWS" description="FTP NEWS team details." />
+      <Seo title="Team | THE FTP NEWS" description="THE FTP NEWS editorial, politics, community, and support team." />
       <section className="container-page py-10">
-        <h1 className="text-4xl font-extrabold">Team</h1>
+        <p className="text-sm font-extrabold uppercase tracking-wide text-brand-red">People Behind The Platform</p>
+        <h1 className="mt-2 text-4xl font-extrabold">Team</h1>
         <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-600">
-          Add your editors, writers, reporters, designers, and support members here.
+          This page is ready for editors, writers, reporters, designers, and support members. Send names, roles, photos, and profile links whenever you want to add them.
         </p>
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {team.map((member) => (

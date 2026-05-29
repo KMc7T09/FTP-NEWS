@@ -335,3 +335,37 @@ export async function recordShare(articleId, currentShares = 0) {
   const { error } = await client.from('articles').update({ shares: currentShares + 1 }).eq('id', articleId);
   if (error) throw error;
 }
+
+export async function saveContactMessage(message) {
+  const client = requireSupabase();
+  const payload = {
+    name: message.name || '',
+    email: message.email || '',
+    subject: message.subject || '',
+    message: message.message || '',
+    type: message.type || 'general',
+    status: 'new',
+  };
+  const { data, error } = await client.from('contact_messages').insert(payload).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listContactMessages() {
+  const client = requireSupabase();
+  const { data, error } = await client.from('contact_messages').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updateContactMessage(id, updates) {
+  const client = requireSupabase();
+  const row = {
+    ...(updates.status !== undefined ? { status: updates.status } : {}),
+    ...(updates.adminNote !== undefined ? { admin_note: updates.adminNote } : {}),
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await client.from('contact_messages').update(row).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data;
+}

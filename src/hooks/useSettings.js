@@ -3,18 +3,19 @@ import { getSettings } from '../supabase/api.js';
 
 const defaults = {
   websiteName: 'THE FTP NEWS',
-  footerText: 'Fresh Take Politics - independent reporting, clear context, and verified updates.',
-  contactEmail: 'newsdesk@example.com',
+  footerText: 'Fresh Take Politics - independent reporting, clear context, and verified updates from Odisha for readers across India.',
+  contactEmail: 'kubulukhotei@gmail.com',
   contactPhone: '',
-  contactAddress: '',
+  contactAddress: 'Odisha, India',
   defaultSeoTitle: 'THE FTP NEWS',
-  defaultSeoDescription: 'Fresh Take Politics, latest news, analysis, and public updates.',
-  founderName: 'Founder',
-  founderTitle: 'Fresh Take Politics',
+  defaultSeoDescription: 'THE FTP NEWS means Fresh Take Politics: independent political news, explainers, analysis, and public updates from Odisha and India.',
+  founderName: 'KMC7T09',
+  founderTitle: 'Founder, Full Stack Developer and Student',
   founderPhotoURL: '',
   founderBio:
-    'FTP NEWS stands for Fresh Take Politics. The mission is to publish clear, independent, and useful reporting for readers across India.',
-  teamText: 'Editorial Desk | News and verification |  | \nPolitics Desk | Fresh Take Politics coverage |  | \nCommunity Desk | Reader tips and corrections |  | ',
+    'KMC7T09 is the founder of THE FTP NEWS, a student and full stack developer from Odisha, India. FTP means Fresh Take Politics. The mission is to build an independent, clear, and reader-first news platform that explains politics and public issues in simple language for people across India.\n\nAuthor name: R.C. Khotei.',
+  authorName: 'R.C. Khotei',
+  teamText: 'Editorial Desk | News verification and publishing |  | \nPolitics Desk | Fresh Take Politics coverage |  | \nCommunity Desk | Reader tips, corrections, and feedback |  | ',
   socialLinks: { facebook: '', x: '', instagram: '', youtube: '', whatsapp: '', telegram: '' },
   logoURL: '',
 };

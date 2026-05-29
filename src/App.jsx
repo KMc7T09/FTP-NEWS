@@ -9,12 +9,17 @@ import SupabaseSetupNotice from './components/common/SupabaseSetupNotice.jsx';
 import { supabaseReady } from './supabase/config.js';
 
 const HomePage = lazy(() => import('./pages/HomePage.jsx'));
+const AboutPage = lazy(() => import('./pages/AboutPage.jsx'));
 const ArticlePage = lazy(() => import('./pages/ArticlePage.jsx'));
 const CategoryPage = lazy(() => import('./pages/CategoryPage.jsx'));
 const SearchPage = lazy(() => import('./pages/SearchPage.jsx'));
 const ContactPage = lazy(() => import('./pages/ContactPage.jsx'));
 const FounderPage = lazy(() => import('./pages/FounderPage.jsx'));
 const TeamPage = lazy(() => import('./pages/TeamPage.jsx'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage.jsx'));
+const TermsPage = lazy(() => import('./pages/TermsPage.jsx'));
+const EditorialPolicyPage = lazy(() => import('./pages/EditorialPolicyPage.jsx'));
+const DisclaimerPage = lazy(() => import('./pages/DisclaimerPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage.jsx'));
@@ -29,6 +34,7 @@ const UserManager = lazy(() => import('./admin/pages/UserManager.jsx'));
 const CommentManager = lazy(() => import('./admin/pages/CommentManager.jsx'));
 const AdManager = lazy(() => import('./admin/pages/AdManager.jsx'));
 const SettingsPage = lazy(() => import('./admin/pages/SettingsPage.jsx'));
+const ContactMessageManager = lazy(() => import('./admin/pages/ContactMessageManager.jsx'));
 
 export default function App() {
   if (!supabaseReady) return <SupabaseSetupNotice />;
@@ -39,12 +45,17 @@ export default function App() {
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/article/:slug" element={<ArticlePage />} />
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/founder" element={<FounderPage />} />
             <Route path="/team" element={<TeamPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/editorial-policy" element={<EditorialPolicyPage />} />
+            <Route path="/disclaimer" element={<DisclaimerPage />} />
             <Route
               path="/login"
               element={
@@ -89,6 +100,7 @@ export default function App() {
             <Route path="categories" element={<ProtectedRoute roles={['admin', 'superadmin']}><CategoryManager /></ProtectedRoute>} />
             <Route path="users" element={<ProtectedRoute roles={['admin', 'superadmin']}><UserManager /></ProtectedRoute>} />
             <Route path="comments" element={<ProtectedRoute roles={['admin', 'superadmin']}><CommentManager /></ProtectedRoute>} />
+            <Route path="contact-messages" element={<ProtectedRoute roles={['admin', 'superadmin']}><ContactMessageManager /></ProtectedRoute>} />
             <Route path="ads" element={<ProtectedRoute roles={['admin', 'superadmin']}><AdManager /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute roles={['admin', 'superadmin']}><SettingsPage /></ProtectedRoute>} />
           </Route>
