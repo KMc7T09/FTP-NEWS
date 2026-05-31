@@ -49,6 +49,7 @@ export default function VisitorAnalytics() {
     { key: 'created_at', label: 'Time', render: (row) => formatDate(row.created_at) },
     { key: 'path', label: 'Page', render: (row) => <span className="break-all font-semibold">{row.path}</span> },
     { key: 'visitor_id', label: 'Visitor', render: (row) => <span className="break-all text-xs">{row.visitor_id}</span> },
+    { key: 'ip_address', label: 'IP Address', render: (row) => <span className="font-mono text-xs">{row.ip_address || '-'}</span> },
     { key: 'user_id', label: 'Joined User', render: (row) => (row.user_id ? <span className="text-green-700">Yes</span> : <span className="text-gray-500">No</span>) },
     { key: 'language', label: 'Lang' },
     { key: 'screen', label: 'Screen' },

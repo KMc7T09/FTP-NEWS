@@ -119,9 +119,12 @@ create table if not exists public.page_visits (
   user_agent text default '',
   language text default '',
   screen text default '',
+  ip_address text default '',
   user_id uuid references auth.users(id) on delete set null,
   created_at timestamptz default now()
 );
+
+alter table public.page_visits add column if not exists ip_address text default '';
 
 create or replace function public.is_admin()
 returns boolean

@@ -378,6 +378,15 @@ export async function deleteContactMessage(id) {
 }
 
 export async function recordPageVisit(visit) {
+  if (typeof fetch === 'function') {
+    const response = await fetch('/.netlify/functions/track-visit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(visit),
+    }).catch(() => null);
+    if (response?.ok || response?.status === 204) return;
+  }
+
   const client = requireSupabase();
   const payload = {
     visitor_id: visit.visitorId,
@@ -388,6 +397,7 @@ export async function recordPageVisit(visit) {
     language: visit.language || '',
     screen: visit.screen || '',
     user_id: visit.userId || null,
+    ip_address: visit.ipAddress || '',
   };
   const { error } = await client.from('page_visits').insert(payload);
   if (error) throw error;
