@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import AdminTable from '../components/AdminTable.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listPageVisits } from '../../supabase/api.js';
-import { formatDate } from '../../utils/format.js';
+import { formatDateTime } from '../../utils/format.js';
 
 function Stat({ label, value }) {
   return (
@@ -46,7 +46,7 @@ export default function VisitorAnalytics() {
   }
 
   const columns = [
-    { key: 'created_at', label: 'Time', render: (row) => formatDate(row.created_at) },
+    { key: 'created_at', label: 'Date & Time', render: (row) => <span className="whitespace-nowrap font-semibold">{formatDateTime(row.created_at)}</span> },
     { key: 'path', label: 'Page', render: (row) => <span className="break-all font-semibold">{row.path}</span> },
     { key: 'visitor_id', label: 'Visitor', render: (row) => <span className="break-all text-xs">{row.visitor_id}</span> },
     { key: 'ip_address', label: 'IP Address', render: (row) => <span className="font-mono text-xs">{row.ip_address || '-'}</span> },

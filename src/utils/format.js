@@ -6,6 +6,12 @@ export function formatDate(value) {
   return Number.isNaN(date.getTime()) ? 'Unpublished' : format(date, 'MMM d, yyyy');
 }
 
+export function formatDateTime(value) {
+  if (!value) return '-';
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : format(date, 'MMM d, yyyy, h:mm a');
+}
+
 export function readTime(content = '') {
   const words = String(content).replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
   return `${Math.max(1, Math.ceil(words / 220))} min read`;
