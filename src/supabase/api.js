@@ -339,6 +339,7 @@ export async function recordShare(articleId, currentShares = 0) {
 export async function saveContactMessage(message) {
   const client = requireSupabase();
   const payload = {
+    user_id: message.userId || null,
     name: message.name || '',
     email: message.email || '',
     subject: message.subject || '',

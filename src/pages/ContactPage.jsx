@@ -33,6 +33,7 @@ export default function ContactPage() {
     try {
       await saveContactMessage({
         ...form,
+        userId: currentUser.id,
         email: currentUser.email || currentUser.phone || profile?.email || '',
       });
       setForm(initialForm);

@@ -96,6 +96,7 @@ create table if not exists public.settings (
 
 create table if not exists public.contact_messages (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
   name text default '',
   email text default '',
   subject text default '',
@@ -106,6 +107,8 @@ create table if not exists public.contact_messages (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.contact_messages add column if not exists user_id uuid references auth.users(id) on delete set null;
 
 create table if not exists public.page_visits (
   id uuid primary key default gen_random_uuid(),
@@ -300,8 +303,10 @@ drop policy if exists "settings admin write" on public.settings;
 create policy "settings admin write" on public.settings for all using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "contact public insert" on public.contact_messages;
-create policy "contact public insert" on public.contact_messages
-for insert with check (true);
+drop policy if exists "contact authenticated insert" on public.contact_messages;
+create policy "contact authenticated insert" on public.contact_messages
+for insert to authenticated
+with check (auth.uid() = user_id);
 
 drop policy if exists "contact admin read" on public.contact_messages;
 create policy "contact admin read" on public.contact_messages
