@@ -316,6 +316,10 @@ drop policy if exists "contact admin update" on public.contact_messages;
 create policy "contact admin update" on public.contact_messages
 for update using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "contact admin delete" on public.contact_messages;
+create policy "contact admin delete" on public.contact_messages
+for delete using (public.is_admin());
+
 drop policy if exists "visits public insert" on public.page_visits;
 create policy "visits public insert" on public.page_visits
 for insert with check (true);

@@ -371,6 +371,12 @@ export async function updateContactMessage(id, updates) {
   return data;
 }
 
+export async function deleteContactMessage(id) {
+  const client = requireSupabase();
+  const { error } = await client.from('contact_messages').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function recordPageVisit(visit) {
   const client = requireSupabase();
   const payload = {

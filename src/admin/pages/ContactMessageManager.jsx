@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import AdminTable from '../components/AdminTable.jsx';
-import { listContactMessages, updateContactMessage } from '../../supabase/api.js';
+import ConfirmButton from '../../components/common/ConfirmButton.jsx';
+import { deleteContactMessage, listContactMessages, updateContactMessage } from '../../supabase/api.js';
 import { formatDate } from '../../utils/format.js';
 
 export default function ContactMessageManager() {
@@ -25,6 +26,16 @@ export default function ContactMessageManager() {
       loadMessages();
     } catch (error) {
       toast.error(error.message || 'Message update failed.');
+    }
+  }
+
+  async function removeMessage(id) {
+    try {
+      await deleteContactMessage(id);
+      toast.success('Message deleted.');
+      loadMessages();
+    } catch (error) {
+      toast.error(error.message || 'Message delete failed.');
     }
   }
 
@@ -61,6 +72,15 @@ export default function ContactMessageManager() {
           <option value="resolved">Resolved</option>
           <option value="spam">Spam</option>
         </select>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (row) => (
+        <ConfirmButton message="Delete this contact message?" onConfirm={() => removeMessage(row.id)}>
+          Delete
+        </ConfirmButton>
       ),
     },
   ];
