@@ -16,6 +16,7 @@ const blank = {
   categoryId: '',
   categoryName: '',
   categorySlug: '',
+  authorName: '',
   tags: '',
   status: 'draft',
   isFeatured: false,
@@ -47,6 +48,11 @@ export default function ArticleEditor() {
     });
   }, [id]);
 
+  useEffect(() => {
+    if (id || form.authorName) return;
+    setField('authorName', profile?.name || currentUser?.email || 'R.C. Khotei');
+  }, [currentUser?.email, form.authorName, id, profile?.name]);
+
   function setField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
   }
@@ -68,7 +74,7 @@ export default function ArticleEditor() {
         categorySlug,
         tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
         authorId: currentUser.id,
-        authorName: profile?.name || currentUser.email || 'FTP Desk',
+        authorName: form.authorName || profile?.name || currentUser.email || 'R.C. Khotei',
         publishedAt: form.status === 'published' ? form.publishedAt || new Date().toISOString() : null,
       });
       toast.success(id ? 'Article updated.' : 'Article created.');
@@ -117,6 +123,11 @@ export default function ArticleEditor() {
               ))}
             </select>
             <input className="input mt-3" value={form.categoryName} onChange={(event) => setField('categoryName', event.target.value)} placeholder="Or type category name" />
+          </div>
+          <div>
+            <label className="label">Author Name</label>
+            <input className="input mt-2" value={form.authorName || ''} onChange={(event) => setField('authorName', event.target.value)} placeholder="R.C. Khotei or guest author name" />
+            <p className="mt-2 text-xs text-gray-500">Use a different author name for each article if needed.</p>
           </div>
           <div>
             <label className="label">Tags</label>
