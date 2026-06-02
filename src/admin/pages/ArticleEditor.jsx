@@ -96,6 +96,11 @@ export default function ArticleEditor() {
             <input className="input mt-2" value={form.title} onChange={(event) => setField('title', event.target.value)} required />
           </div>
           <div>
+            <label className="label">Article Author Name</label>
+            <input className="input mt-2" value={form.authorName || ''} onChange={(event) => setField('authorName', event.target.value)} placeholder="R.C. Khotei or guest author name" />
+            <p className="mt-2 text-xs text-gray-500">This author name will appear on the article page and article cards.</p>
+          </div>
+          <div>
             <label className="label">Excerpt</label>
             <textarea className="input mt-2 min-h-24" value={form.excerpt} onChange={(event) => setField('excerpt', event.target.value)} />
           </div>
@@ -123,11 +128,6 @@ export default function ArticleEditor() {
               ))}
             </select>
             <input className="input mt-3" value={form.categoryName} onChange={(event) => setField('categoryName', event.target.value)} placeholder="Or type category name" />
-          </div>
-          <div>
-            <label className="label">Author Name</label>
-            <input className="input mt-2" value={form.authorName || ''} onChange={(event) => setField('authorName', event.target.value)} placeholder="R.C. Khotei or guest author name" />
-            <p className="mt-2 text-xs text-gray-500">Use a different author name for each article if needed.</p>
           </div>
           <div>
             <label className="label">Tags</label>
