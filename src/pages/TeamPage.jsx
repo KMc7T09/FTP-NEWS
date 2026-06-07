@@ -15,13 +15,15 @@ export default function TeamPage() {
     <>
       <Seo title="Team | THE FTP NEWS" description="THE FTP NEWS editorial, politics, community, and support team." />
       <section className="container-page py-10">
-        <p className="text-sm font-extrabold uppercase tracking-wide text-brand-red">People Behind The Platform</p>
-        <h1 className="mt-2 text-4xl font-extrabold">Team</h1>
-        <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-600">
-          This page is ready for editors, writers, reporters, designers, and support members. Send names, roles, photos, and profile links whenever you want to add them.
-        </p>
+        <div className="trust-hero">
+          <p className="section-kicker text-red-200">People Behind The Platform</p>
+          <h1 className="mt-2 text-4xl font-extrabold sm:text-5xl">FTP Team</h1>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-200">
+            This page is ready for editors, writers, reporters, designers, fact-checkers and support members. Add names, roles, photos and profile links from Settings.
+          </p>
+        </div>
         <div className="mt-8 grid gap-6 md:grid-cols-3">
-          {team.map((member) => (
+          {team.length ? team.map((member) => (
             <div key={member.name} className="news-card p-5">
               {member.photoURL ? (
                 <img src={member.photoURL} alt="" className="h-20 w-20 rounded-full object-cover" />
@@ -36,7 +38,15 @@ export default function TeamPage() {
                 </a>
               ) : null}
             </div>
-          ))}
+          )) : (
+            ['Editor', 'Reporter', 'Fact Checker'].map((role) => (
+              <div key={role} className="news-card p-6">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-red text-xl font-extrabold text-white">FTP</div>
+                <h2 className="mt-4 font-extrabold">{role} Space</h2>
+                <p className="mt-2 text-sm leading-6 text-gray-600">Team member details can be added from admin settings when ready.</p>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </>

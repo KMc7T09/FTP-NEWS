@@ -127,6 +127,9 @@ export default function ArticleEditor() {
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
+            <p className="mt-2 text-xs leading-5 text-gray-500">
+              Opinion = view/editorial, Fact Check = claim verification, World = international news, Youth = student/job/youth stories.
+            </p>
             <input className="input mt-3" value={form.categoryName} onChange={(event) => setField('categoryName', event.target.value)} placeholder="Or type category name" />
           </div>
           <div>

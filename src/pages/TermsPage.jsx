@@ -7,8 +7,12 @@ export default function TermsPage() {
     <>
       <Seo title="Terms | THE FTP NEWS" description="Terms and conditions for using THE FTP NEWS." />
       <section className="container-page py-10">
+        <div className="trust-hero mb-6 max-w-4xl">
+          <p className="section-kicker text-red-200">Platform Rules</p>
+          <h1 className="mt-2 text-4xl font-extrabold">Terms and Conditions</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-300">Rules for reading, joining, commenting, and using FTP content.</p>
+        </div>
         <div className="news-card max-w-4xl p-6">
-          <h1 className="text-4xl font-extrabold">Terms and Conditions</h1>
           <div className="mt-6 space-y-5 text-sm leading-7 text-gray-700">
             <p>By using THE FTP NEWS, you agree to use the website lawfully and respectfully.</p>
             <p>Readers may comment, like, bookmark, and report content. Abusive, vulgar, spam, or illegal content may be hidden, deleted, or sent for moderation.</p>

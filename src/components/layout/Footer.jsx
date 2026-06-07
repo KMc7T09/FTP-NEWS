@@ -5,7 +5,7 @@ export default function Footer() {
   const settings = useSettings();
   const socials = Object.entries(settings.socialLinks || {}).filter(([, value]) => value);
   const year = new Date().getFullYear();
-  const categories = ['Politics', 'India', 'Odisha', 'World', 'Opinion', 'Fact Check', 'Youth', 'Videos'];
+  const categories = ['Politics', 'India', 'Odisha', 'World', 'Opinion', 'Fact Check', 'Youth'];
 
   return (
     <footer className="mt-14 bg-gray-950 text-white">

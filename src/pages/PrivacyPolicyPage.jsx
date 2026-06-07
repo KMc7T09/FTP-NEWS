@@ -7,8 +7,12 @@ export default function PrivacyPolicyPage() {
     <>
       <Seo title="Privacy Policy | THE FTP NEWS" description="Privacy Policy for THE FTP NEWS readers, account users, commenters, and contact form users." />
       <section className="container-page py-10">
+        <div className="trust-hero mb-6 max-w-4xl">
+          <p className="section-kicker text-red-200">Reader Trust</p>
+          <h1 className="mt-2 text-4xl font-extrabold">Privacy Policy</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-300">How FTP handles account, contact, analytics and community data.</p>
+        </div>
         <div className="news-card max-w-4xl p-6">
-          <h1 className="text-4xl font-extrabold">Privacy Policy</h1>
           <div className="mt-6 space-y-5 text-sm leading-7 text-gray-700">
             <p>THE FTP NEWS collects only the information needed to run reader accounts, comments, bookmarks, contact messages, and publishing features.</p>
             <p>Account login is handled by Supabase Authentication. We do not store user passwords in our public database.</p>

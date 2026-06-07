@@ -12,7 +12,6 @@ const descriptions = {
   opinion: 'Views, explainers, youth voices, and editorial perspective.',
   'fact-check': 'Verification-led stories that check claims and public narratives.',
   youth: 'Student, youth, job, education, and future-focused stories.',
-  videos: 'Video-first explainers, clips, and visual coverage.',
 };
 
 export default function CategoryPage() {
@@ -31,7 +30,7 @@ export default function CategoryPage() {
 
   return (
     <>
-      <Seo title={`${slug} News | FTP NEWS`} description={`Latest ${slug} news and analysis.`} />
+      <Seo title={`${title} News | FTP - Fresh Take Politics`} description={descriptions[slug] || `Latest ${title} news and analysis from FTP.`} />
       <section className="border-b border-gray-200 bg-white">
         <div className="container-page py-10">
           <p className="section-kicker">FTP Category</p>

@@ -49,10 +49,10 @@ export default function ContactPage() {
     <>
       <Seo title="Contact | THE FTP NEWS" description="Contact THE FTP NEWS for news tips, corrections, partnerships, advertising, and editorial queries." />
       <section className="container-page py-10">
-        <div className="max-w-3xl">
-          <p className="text-sm font-extrabold uppercase tracking-wide text-brand-red">Reader Desk</p>
-          <h1 className="mt-2 text-4xl font-extrabold">Contact THE FTP NEWS</h1>
-          <p className="mt-4 text-lg leading-8 text-gray-600">
+        <div className="trust-hero">
+          <p className="section-kicker text-red-200">Reader Desk</p>
+          <h1 className="mt-2 text-4xl font-extrabold sm:text-5xl">Contact FTP Newsroom</h1>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-200">
             Send news tips, corrections, editorial feedback, partnership queries, or advertising requests. Your message goes directly to the superadmin inbox.
           </p>
         </div>
@@ -69,6 +69,10 @@ export default function ContactPage() {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
           <form onSubmit={submit} className="news-card grid gap-4 p-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <p className="section-kicker">Secure Message</p>
+              <h2 className="mt-2 text-2xl font-extrabold">Write to FTP</h2>
+            </div>
             <div>
               <label className="label">Name</label>
               <input className="input mt-2" value={form.name} onChange={(event) => setField('name', event.target.value)} placeholder="Your name" />
@@ -104,10 +108,10 @@ export default function ContactPage() {
           </form>
 
           <div className="space-y-4">
-            <div className="news-card p-5">
+            <div className="dashboard-card">
               <Mail className="text-brand-red" />
               <h2 className="mt-3 font-extrabold">Email</h2>
-              <a href={`mailto:${settings.contactEmail}`} className="mt-2 block break-all text-sm font-bold text-brand-blue hover:text-brand-red">
+              <a href={`mailto:${settings.contactEmail}`} className="mt-2 block break-all text-sm font-bold text-red-200 hover:text-white">
                 {settings.contactEmail}
               </a>
             </div>
