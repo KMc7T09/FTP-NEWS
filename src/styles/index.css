@@ -75,17 +75,47 @@ img {
 }
 
 .prose-news {
-  @apply max-w-none text-lg leading-8 text-gray-800;
+  @apply max-w-none text-[17px] leading-8 text-gray-800 sm:text-lg;
 }
 
 .prose-news h2 {
-  @apply mt-8 text-2xl font-bold text-gray-950;
+  @apply mt-10 text-2xl font-extrabold leading-tight text-gray-950;
+}
+
+.prose-news h3 {
+  @apply mt-8 text-xl font-extrabold leading-tight text-gray-950;
 }
 
 .prose-news p {
   @apply my-5;
 }
 
+.prose-news blockquote {
+  @apply my-7 border-l-4 border-brand-red bg-gray-50 px-5 py-4 font-serif text-xl font-bold leading-8 text-gray-950;
+}
+
 .prose-news a {
   @apply font-semibold text-brand-blue underline-offset-4 hover:text-brand-red hover:underline;
+}
+
+.ticker-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.ticker-track {
+  animation: ftpTicker 28s linear infinite;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes ftpTicker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }

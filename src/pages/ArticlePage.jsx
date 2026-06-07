@@ -1,4 +1,4 @@
-import { Bookmark, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Bookmark, Copy, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -159,6 +159,17 @@ export default function ArticlePage() {
     toast.success('Share link ready.');
   }
 
+  function shareTo(platform) {
+    const target = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(article.title);
+    const urls = {
+      whatsapp: `https://wa.me/?text=${text}%20${target}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${target}`,
+      twitter: `https://twitter.com/intent/tweet?text=${text}&url=${target}`,
+    };
+    window.open(urls[platform], '_blank', 'noopener,noreferrer');
+  }
+
   async function reportComment(item) {
     if (!currentUser) return toast.error('Please log in to report.');
     toast.success('Report received.');
@@ -172,14 +183,52 @@ export default function ArticlePage() {
 
   return (
     <>
-      <Seo title={article.metaTitle || article.title} description={article.metaDescription || article.excerpt} image={article.featuredImageURL} type="article" />
+      <Seo
+        title={`${article.metaTitle || article.title} | FTP - Fresh Take Politics`}
+        description={article.metaDescription || article.excerpt}
+        image={article.featuredImageURL}
+        type="article"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'NewsArticle',
+              headline: article.title,
+              description: article.excerpt,
+              image: article.featuredImageURL ? [article.featuredImageURL] : undefined,
+              datePublished: article.publishedAt,
+              dateModified: article.updatedAt || article.publishedAt,
+              author: { '@type': 'Person', name: article.authorName || 'FTP Desk' },
+              publisher: { '@type': 'Organization', name: 'FTP - Fresh Take Politics' },
+              mainEntityOfPage: typeof window !== 'undefined' ? window.location.href : undefined,
+            },
+            {
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                { '@type': 'ListItem', position: 1, name: 'Home', item: typeof window !== 'undefined' ? window.location.origin : undefined },
+                { '@type': 'ListItem', position: 2, name: article.categoryName || 'News', item: typeof window !== 'undefined' ? `${window.location.origin}/category/${article.categorySlug || article.categoryId}` : undefined },
+                { '@type': 'ListItem', position: 3, name: article.title, item: typeof window !== 'undefined' ? window.location.href : undefined },
+              ],
+            },
+          ],
+        }}
+      />
       <article className="bg-white">
         <div className="container-page grid gap-10 py-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
+            <nav className="mb-5 flex flex-wrap gap-2 text-sm font-semibold text-gray-500" aria-label="Breadcrumb">
+              <Link to="/" className="hover:text-brand-red">Home</Link>
+              <span>/</span>
+              <Link to={`/category/${article.categorySlug || article.categoryId}`} className="hover:text-brand-red">{article.categoryName || 'News'}</Link>
+              <span>/</span>
+              <span className="text-gray-900">Article</span>
+            </nav>
             <div className="mb-4 flex flex-wrap gap-3 text-sm font-bold uppercase tracking-wide text-brand-red">
               <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName}</Link>
               <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
+              <span className="text-gray-400">Updated {formatDate(article.updatedAt || article.publishedAt)}</span>
               <span className="text-gray-400">{readTime(article.content)}</span>
+              <span className="text-gray-400">{article.categorySlug === 'opinion' ? 'Opinion' : article.categorySlug === 'fact-check' ? 'Fact Check' : 'News'}</span>
             </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-7">
               <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{translatedTitle || article.title}</h1>
@@ -250,9 +299,9 @@ export default function ArticlePage() {
               />
               </div>
             </div>
-            <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />
+            <img src={article.featuredImageURL} alt={article.title} className="mt-6 aspect-video max-h-[560px] w-full rounded-lg object-cover" loading="eager" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />
-            <div className="prose-news" dangerouslySetInnerHTML={{ __html: translatedContent || article.content }} />
+            <div className="prose-news mx-auto max-w-[760px]" dangerouslySetInnerHTML={{ __html: translatedContent || article.content }} />
             {(article.sourceName || article.sourceURL) && (
               <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Source / Credit</p>
@@ -265,6 +314,21 @@ export default function ArticlePage() {
                 )}
               </div>
             )}
+            {article.tags?.length ? (
+              <div className="mt-6 flex flex-wrap gap-2">
+                {article.tags.map((tag) => <span key={tag} className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">#{tag}</span>)}
+              </div>
+            ) : null}
+            <div className="mt-8 rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Share this story</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="btn-secondary" onClick={() => shareTo('whatsapp')}>WhatsApp</button>
+                <button className="btn-secondary" onClick={() => shareTo('facebook')}>Facebook</button>
+                <button className="btn-secondary" onClick={() => shareTo('twitter')}>X/Twitter</button>
+                <button className="btn-secondary" onClick={shareArticle}><Copy size={16} /> Copy Link</button>
+                <Link to="/contact" className="btn-secondary"><Flag size={16} /> Report Correction</Link>
+              </div>
+            </div>
             <AdSlot label="Article Bottom Ad Slot" position="article-bottom" className="my-8" />
 
             <section className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">

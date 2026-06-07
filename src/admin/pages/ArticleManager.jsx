@@ -1,4 +1,4 @@
-import { Edit, Plus } from 'lucide-react';
+import { Edit, Eye, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -41,13 +41,26 @@ export default function ArticleManager() {
         columns={[
           { key: 'title', label: 'Title' },
           { key: 'categoryName', label: 'Category' },
-          { key: 'status', label: 'Status' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (row) => (
+              <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide ${row.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                {row.status}
+              </span>
+            ),
+          },
           { key: 'publishedAt', label: 'Published', render: (row) => formatDate(row.publishedAt) },
           {
             key: 'actions',
             label: 'Actions',
             render: (row) => (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {row.status === 'published' && (
+                  <Link to={`/article/${row.slug}`} className="btn-secondary">
+                    <Eye size={16} /> View
+                  </Link>
+                )}
                 <Link to={`/admin/articles/${row.id}/edit`} className="btn-secondary">
                   <Edit size={16} /> Edit
                 </Link>

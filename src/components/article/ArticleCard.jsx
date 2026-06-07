@@ -39,7 +39,8 @@ export default function ArticleCard({ article, large = false, compact = false })
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
-          className={`h-full min-h-52 w-full object-cover transition duration-500 group-hover:scale-105 ${large ? 'md:min-h-80' : ''} ${compact ? 'sm:min-h-36' : ''}`}
+          className={`aspect-video h-full min-h-52 w-full object-cover transition duration-500 group-hover:scale-105 ${large ? 'md:min-h-80' : ''} ${compact ? 'sm:min-h-36' : ''}`}
+          loading={large ? 'eager' : 'lazy'}
         />
         <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-red shadow-sm">
           {article.categoryName || 'News'}

@@ -5,7 +5,11 @@ import { useFeaturedArticles, usePublishedArticles } from '../hooks/useArticles.
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import TrendingSidebar from '../components/article/TrendingSidebar.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
+import BreakingTicker from '../components/common/BreakingTicker.jsx';
+import FollowBox from '../components/common/FollowBox.jsx';
+import NewsletterBox from '../components/common/NewsletterBox.jsx';
 import Seo from '../components/common/Seo.jsx';
+import SectionBlock from '../components/common/SectionBlock.jsx';
 import { ArticleSkeleton } from '../components/ui/Skeleton.jsx';
 import { staticCategories } from '../data/demoContent.js';
 
@@ -17,6 +21,12 @@ export default function HomePage() {
   const { data: featured } = useFeaturedArticles();
   const hero = featured[0] || latest[0];
   const secondary = latest.filter((item) => item.id !== hero?.id).slice(0, 2);
+  const byCategory = (slugs) => latest.filter((article) => slugs.includes(article.categorySlug || article.categoryId)).slice(0, 3);
+  const politics = byCategory(['politics']);
+  const indiaOdisha = byCategory(['india', 'odisha']);
+  const opinion = byCategory(['opinion']);
+  const factCheck = byCategory(['fact-check']);
+  const editorsPick = featured.slice(1, 4).length ? featured.slice(1, 4) : latest.slice(3, 6);
 
   function submit(event) {
     event.preventDefault();
@@ -25,7 +35,17 @@ export default function HomePage() {
 
   return (
     <>
-      <Seo title="FTP NEWS" description="Fresh Take Politics, latest breaking news, analysis, and community updates." />
+      <Seo
+        title="FTP | Fresh Take Politics - Independent News, Politics & Opinion"
+        description="Fresh Take Politics is an independent digital news platform covering politics, India, Odisha, public issues, youth voices, opinion and fact-check stories."
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: 'FTP - Fresh Take Politics',
+          url: typeof window !== 'undefined' ? window.location.origin : undefined,
+        }}
+      />
+      <BreakingTicker articles={latest} />
       <section className="border-b border-gray-200 bg-white">
         <div className="container-page grid gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:py-10">
           <div className="space-y-6">
@@ -81,6 +101,8 @@ export default function HomePage() {
               </div>
             </div>
             <TrendingSidebar />
+            <NewsletterBox />
+            <FollowBox />
           </div>
         </div>
       </section>
@@ -101,6 +123,50 @@ export default function HomePage() {
             : latest.slice(0, 9).map((article) => <ArticleCard key={article.id} article={article} />)}
         </div>
       </section>
+
+      <SectionBlock
+        kicker="Political Desk"
+        title="Politics"
+        description="Sharp political updates, context, and public issue reporting."
+        articles={politics.length ? politics : latest.slice(0, 3)}
+        to="/category/politics"
+      />
+
+      <section className="bg-white">
+        <SectionBlock
+          kicker="Ground Reports"
+          title="Odisha / India"
+          description="Stories from Odisha and across India with clear local context."
+          articles={indiaOdisha.length ? indiaOdisha : latest.slice(2, 5)}
+          to="/category/odisha"
+        />
+      </section>
+
+      <SectionBlock
+        kicker="Views"
+        title="Opinion"
+        description="Youth-focused commentary, explainers, and public voice."
+        articles={opinion.length ? opinion : latest.slice(4, 7)}
+        to="/category/opinion"
+      />
+
+      <section className="bg-white">
+        <SectionBlock
+          kicker="Verification Desk"
+          title="Fact Check"
+          description="Claims, context, and verification for public debate."
+          articles={factCheck.length ? factCheck : latest.slice(5, 8)}
+          to="/category/fact-check"
+        />
+      </section>
+
+      <SectionBlock
+        kicker="Curated"
+        title="Editor's Pick"
+        description="The FTP desk selection of important reads."
+        articles={editorsPick}
+        to="/search"
+      />
 
       <section className="bg-white py-10">
         <div className="container-page">
