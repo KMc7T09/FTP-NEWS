@@ -174,18 +174,27 @@ export default function ArticlePage() {
     <>
       <Seo title={article.metaTitle || article.title} description={article.metaDescription || article.excerpt} image={article.featuredImageURL} type="article" />
       <article className="bg-white">
-        <div className="container-page grid gap-10 py-8 lg:grid-cols-[1fr_320px]">
+        <div className="container-page grid gap-10 py-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <div className="mb-4 flex flex-wrap gap-3 text-sm font-bold uppercase tracking-wide text-brand-red">
               <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName}</Link>
               <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
               <span className="text-gray-400">{readTime(article.content)}</span>
             </div>
-            <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{translatedTitle || article.title}</h1>
-            <p className="mt-4 text-lg leading-8 text-gray-600">{translatedExcerpt || article.excerpt}</p>
-            <div className="mt-5 flex items-center justify-between border-y border-gray-200 py-4">
-              <span className="text-sm font-semibold text-gray-700">By {article.authorName || 'News Desk'}</span>
-              <div className="flex flex-wrap justify-end gap-2">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-7">
+              <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{translatedTitle || article.title}</h1>
+              <p className="mt-4 text-lg leading-8 text-gray-600">{translatedExcerpt || article.excerpt}</p>
+            </div>
+            <div className="mt-5 grid gap-4 border-y border-gray-200 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <span className="text-sm font-semibold text-gray-700">By {article.authorName || 'News Desk'}</span>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold uppercase tracking-wide text-gray-500">
+                  <span>{likeCount} likes</span>
+                  <span>{commentCount} comments</span>
+                  <span>{article.shares || 0} shares</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:justify-end">
                 <button className={bookmarked ? 'btn-primary' : 'btn-secondary'} onClick={bookmarkArticle}>
                   <Bookmark size={16} /> {bookmarked ? 'Bookmarked' : 'Bookmark'}
                 </button>
@@ -200,7 +209,8 @@ export default function ArticlePage() {
                 </button>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+              <div className="flex flex-wrap items-center gap-3">
               <InlineTranslate
                 html={article.content}
                 title={article.title}
@@ -238,6 +248,7 @@ export default function ArticlePage() {
                 translatedExcerpt={translatedExcerpt}
                 translatedHtml={translatedContent}
               />
+              </div>
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 max-h-[560px] w-full rounded-lg object-cover" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />
@@ -256,11 +267,11 @@ export default function ArticlePage() {
             )}
             <AdSlot label="Article Bottom Ad Slot" position="article-bottom" className="my-8" />
 
-            <section className="mt-10">
+            <section className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">
               <h2 className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
                 Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{commentCount}</span>
               </h2>
-              <form onSubmit={submitComment} className="news-card mb-6 p-4">
+              <form onSubmit={submitComment} className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
                 {currentUser ? (
                   <>
                     <textarea className="input min-h-28" value={comment} onChange={(event) => setComment(event.target.value)} placeholder={isBanned ? 'Banned users cannot comment.' : 'Join the discussion'} disabled={isBanned} />
@@ -277,7 +288,7 @@ export default function ArticlePage() {
               </form>
               <div className="space-y-4">
                 {comments.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-gray-200 p-4">
+                  <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4">
                     <div className="flex justify-between gap-4">
                       <div>
                         <p className="font-bold">{item.userName}</p>

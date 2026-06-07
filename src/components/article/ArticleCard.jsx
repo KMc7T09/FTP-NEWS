@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock, Heart, MessageCircle } from 'lucide-react';
+import { Clock, Heart, MessageCircle, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatDate, readTime } from '../../utils/format.js';
 import { countArticleComments, countArticleLikes, getArticleBySlugDb } from '../../supabase/api.js';
@@ -8,7 +8,7 @@ function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }
 
-export default function ArticleCard({ article, large = false }) {
+export default function ArticleCard({ article, large = false, compact = false }) {
   const [stats, setStats] = useState({ likes: 0, comments: 0 });
   const articlePath = `/article/${article.slug}`;
 
@@ -34,27 +34,32 @@ export default function ArticleCard({ article, large = false }) {
   }, [article.id, article.slug]);
 
   return (
-    <article className={`news-card overflow-hidden ${large ? 'md:grid md:grid-cols-[1.2fr_1fr]' : ''}`}>
-      <Link to={articlePath} className="block bg-gray-200">
+    <article className={`news-card group overflow-hidden ${large ? 'md:grid md:grid-cols-[1.2fr_1fr]' : ''}`}>
+      <Link to={articlePath} className={`relative block overflow-hidden bg-gray-200 ${compact ? 'hidden sm:block' : ''}`}>
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
-          className={`h-full min-h-52 w-full object-cover ${large ? 'md:min-h-80' : ''}`}
+          className={`h-full min-h-52 w-full object-cover transition duration-500 group-hover:scale-105 ${large ? 'md:min-h-80' : ''} ${compact ? 'sm:min-h-36' : ''}`}
         />
+        <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-red shadow-sm">
+          {article.categoryName || 'News'}
+        </span>
       </Link>
-      <div className="flex flex-col gap-3 p-5">
+      <div className={`flex flex-col gap-3 ${compact ? 'p-4' : 'p-5'}`}>
         <div className="flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-wide text-brand-red">
           <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName || 'News'}</Link>
           <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
         </div>
         <Link to={articlePath}>
-          <h2 className={`${large ? 'text-3xl' : 'text-xl'} font-extrabold leading-tight text-gray-950 hover:text-brand-blue`}>
+          <h2 className={`${large ? 'text-3xl' : compact ? 'text-lg' : 'text-xl'} font-extrabold leading-tight text-gray-950 hover:text-brand-blue`}>
             {article.title}
           </h2>
         </Link>
-        <p className="line-clamp-3 text-sm leading-6 text-gray-600">{article.excerpt}</p>
+        {!compact && <p className="line-clamp-3 text-sm leading-6 text-gray-600">{article.excerpt}</p>}
         <div className="mt-auto flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-gray-500">
-          <span>{article.authorName || 'News Desk'}</span>
+          <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-gray-700">
+            <UserRound size={14} /> <span className="truncate">{article.authorName || 'News Desk'}</span>
+          </span>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
               <Heart size={14} /> {stats.likes}
