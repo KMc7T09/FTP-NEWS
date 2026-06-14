@@ -65,7 +65,7 @@ export default function HomePage() {
               <input className="w-full bg-transparent py-3 pr-4 outline-none" placeholder="Search title, category, tags, or story text" value={search} onChange={(event) => setSearch(event.target.value)} />
               <button className="bg-brand-red px-4 text-sm font-bold text-white sm:px-5">Search</button>
             </form>
-            <div className="grid gap-5 xl:grid-cols-[1.45fr_0.85fr]">
+            <div className="grid gap-5 xl:grid-cols-[1.7fr_0.8fr]">
               {hero ? <ArticleCard article={hero} large priority /> : loading ? <ArticleSkeleton /> : null}
               <div className="grid gap-5">
                 {secondary.map((article) => <ArticleCard key={article.id} article={article} compact />)}
