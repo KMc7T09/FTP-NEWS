@@ -17,12 +17,21 @@ function withTimeout(promise, message = 'Connection took too long. Please refres
   ]);
 }
 
+function normalizePhone(value = '') {
+  const cleaned = value.replace(/[^\d+]/g, '').trim();
+  if (cleaned.startsWith('+')) return cleaned;
+  if (cleaned.length === 10) return `+91${cleaned}`;
+  return cleaned;
+}
+
 function userToProfile(user, extra = {}) {
   return {
     id: user.id,
     uid: user.id,
     name: extra.name || user.user_metadata?.name || user.user_metadata?.full_name || '',
-    email: user.email || user.phone || '',
+    email: user.email || '',
+    phone: user.phone || extra.phone || '',
+    whatsappOptIn: Boolean(extra.whatsappOptIn),
     photoURL: user.user_metadata?.avatar_url || '',
     role: 'user',
     status: 'active',
@@ -143,14 +152,18 @@ export function AuthProvider({ children }) {
 
   async function sendPhoneOtp(phone) {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    const normalized = normalizePhone(phone);
+    const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
     if (error) throw error;
+    return normalized;
   }
 
   async function verifyPhoneOtp(phone, token) {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
-    const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+    const normalized = normalizePhone(phone);
+    const { data, error } = await supabase.auth.verifyOtp({ phone: normalized, token, type: 'sms' });
     if (error) throw error;
+    if (data.user) await withTimeout(upsertProfile(userToProfile(data.user, { phone: normalized, whatsappOptIn: true })), 'Profile setup took too long.');
     if (data.user) await withTimeout(loadProfile(data.user), 'Profile loading took too long.');
     return data.user;
   }

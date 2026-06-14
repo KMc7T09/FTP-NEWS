@@ -85,6 +85,8 @@ export function mapProfile(row = {}) {
     uid: row.id,
     name: row.name || '',
     email: row.email || '',
+    phone: row.phone_number || '',
+    whatsappOptIn: Boolean(row.whatsapp_opt_in),
     photoURL: row.photo_url || '',
     role: row.role || 'user',
     status: row.status || 'active',

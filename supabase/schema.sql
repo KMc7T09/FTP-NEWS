@@ -4,6 +4,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text default '',
   email text default '',
+  phone_number text default '',
+  whatsapp_opt_in boolean default false,
   photo_url text default '',
   role text default 'user' check (role in ('user', 'editor', 'admin', 'superadmin')),
   status text default 'active' check (status in ('active', 'banned')),
@@ -11,6 +13,9 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.profiles add column if not exists phone_number text default '';
+alter table public.profiles add column if not exists whatsapp_opt_in boolean default false;
 
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -211,11 +216,13 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, name, email, photo_url, role, status)
+  insert into public.profiles (id, name, email, phone_number, whatsapp_opt_in, photo_url, role, status)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', ''),
     coalesce(new.email, ''),
+    coalesce(new.phone, ''),
+    false,
     coalesce(new.raw_user_meta_data->>'avatar_url', ''),
     'user',
     'active'

@@ -5,6 +5,13 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import Seo from '../components/common/Seo.jsx';
 
+function normalizePhone(value = '') {
+  const cleaned = value.replace(/[^\d+]/g, '').trim();
+  if (cleaned.startsWith('+')) return cleaned;
+  if (cleaned.length === 10) return `+91${cleaned}`;
+  return cleaned;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,11 +45,13 @@ export default function LoginPage() {
     event.preventDefault();
     setBusy(true);
     try {
-      await sendPhoneOtp(phone);
+      const normalized = normalizePhone(phone);
+      await sendPhoneOtp(normalized);
+      setPhone(normalized);
       setOtpSent(true);
-      toast.success('OTP sent to phone.');
+      toast.success(`OTP sent to ${normalized}.`);
     } catch (error) {
-      toast.error(error.message || 'Phone login is not enabled in Supabase.');
+      toast.error(error.message || 'Phone login needs Supabase SMS provider setup.');
     } finally {
       setBusy(false);
     }
@@ -52,7 +61,7 @@ export default function LoginPage() {
     event.preventDefault();
     setBusy(true);
     try {
-      await verifyPhoneOtp(phone, otp);
+      await verifyPhoneOtp(normalizePhone(phone), otp);
       navigate('/profile');
     } catch (error) {
       toast.error(error.message || 'OTP verification failed.');
@@ -87,7 +96,10 @@ export default function LoginPage() {
         </form>
         <form onSubmit={otpSent ? verifyOtp : sendOtp} className="news-card p-6">
           <h2 className="text-2xl font-extrabold">Join with Phone</h2>
-          <p className="mt-3 text-sm leading-6 text-gray-600">Use international format, example: +919876543210. Phone login works after SMS provider is enabled in Supabase.</p>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            Enter 10 digit Indian number or international format. Example: 9876543210 or +919876543210.
+            Phone login works only after Supabase SMS provider is enabled.
+          </p>
           <label className="label mt-5 block">Phone Number</label>
           <input className="input mt-2" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91..." required />
           {otpSent ? (
@@ -99,6 +111,9 @@ export default function LoginPage() {
           <button className="btn-primary mt-5 w-full" disabled={busy}>
             <Phone size={16} /> {otpSent ? 'Verify OTP' : 'Send OTP'}
           </button>
+          <div className="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-xs leading-5 text-yellow-900">
+            If OTP is not coming, enable Supabase Authentication → Providers → Phone and connect an SMS provider. Free Supabase does not send unlimited SMS by itself.
+          </div>
         </form>
         </div>
       </section>

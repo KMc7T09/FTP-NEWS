@@ -23,15 +23,21 @@ export async function upsertProfile(profile) {
     id: profile.id || profile.uid,
     name: profile.name || '',
     email: profile.email || '',
+    phone_number: profile.phone || profile.phoneNumber || '',
+    whatsapp_opt_in: Boolean(profile.whatsappOptIn),
     photo_url: profile.photoURL || '',
     role: profile.role || 'user',
     status: profile.status || 'active',
     banned_reason: profile.bannedReason || '',
     updated_at: new Date().toISOString(),
   };
-  const { data, error } = await client.from('profiles').upsert(row).select('*').single();
-  if (error) throw error;
-  return mapProfile(data);
+  let result = await client.from('profiles').upsert(row).select('*').single();
+  if (result.error && String(result.error.message).includes('phone_number')) {
+    const { phone_number, whatsapp_opt_in, ...fallbackRow } = row;
+    result = await client.from('profiles').upsert(fallbackRow).select('*').single();
+  }
+  if (result.error) throw result.error;
+  return mapProfile(result.data);
 }
 
 export async function listProfiles() {
@@ -46,6 +52,8 @@ export async function updateProfileAdmin(id, updates) {
   const row = {
     ...(updates.name !== undefined ? { name: updates.name } : {}),
     ...(updates.photoURL !== undefined ? { photo_url: updates.photoURL } : {}),
+    ...(updates.phone !== undefined ? { phone_number: updates.phone } : {}),
+    ...(updates.whatsappOptIn !== undefined ? { whatsapp_opt_in: Boolean(updates.whatsappOptIn) } : {}),
     ...(updates.role !== undefined ? { role: updates.role } : {}),
     ...(updates.status !== undefined ? { status: updates.status } : {}),
     ...(updates.bannedReason !== undefined ? { banned_reason: updates.bannedReason } : {}),
@@ -94,7 +102,23 @@ export async function saveArticle(article) {
 
   const { data, error } = await request;
   if (error) throw error;
-  return mapArticle(data);
+  const mapped = mapArticle(data);
+  if (mapped.status === 'published') notifyArticlePublished(mapped).catch(() => {});
+  return mapped;
+}
+
+async function notifyArticlePublished(article) {
+  if (typeof fetch !== 'function') return;
+  await fetch('/.netlify/functions/notify-whatsapp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: article.title,
+      slug: article.slug,
+      excerpt: article.excerpt,
+      url: `${window.location.origin}/article/${article.slug}`,
+    }),
+  });
 }
 
 export async function ensureArticleInSupabase(article) {
