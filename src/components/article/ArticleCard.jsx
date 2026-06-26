@@ -36,10 +36,19 @@ export default function ArticleCard({ article, large = false, compact = false })
   return (
     <article className={`news-card group overflow-hidden ${large ? 'sm:grid sm:min-h-[340px] sm:grid-cols-[1.08fr_0.92fr] sm:items-stretch' : ''}`}>
       <Link to={articlePath} className={`relative block overflow-hidden bg-gray-200 ${large ? 'aspect-video sm:aspect-auto sm:h-full sm:min-h-[340px]' : ''} ${compact ? 'hidden sm:block' : ''}`}>
+        {large && (
+          <img
+            src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
+            alt=""
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-xl"
+            aria-hidden="true"
+            loading="eager"
+          />
+        )}
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
-          className={`h-full w-full object-cover object-center transition duration-500 group-hover:scale-105 ${large ? 'min-h-52 sm:min-h-[340px]' : 'min-h-52'} ${compact ? 'sm:min-h-36' : ''}`}
+          className={`relative z-10 h-full w-full transition duration-500 group-hover:scale-[1.02] ${large ? 'min-h-52 object-contain object-center sm:min-h-[340px]' : 'min-h-52 object-cover object-center'} ${compact ? 'sm:min-h-36' : ''}`}
           loading={large ? 'eager' : 'lazy'}
         />
         <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-red shadow-sm">
