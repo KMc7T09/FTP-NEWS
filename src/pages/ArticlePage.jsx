@@ -264,6 +264,9 @@ export default function ArticlePage() {
                 html={article.content}
                 title={article.title}
                 excerpt={article.excerpt}
+                officialOdiaTitle={article.odiaTitle}
+                officialOdiaExcerpt={article.odiaExcerpt}
+                officialOdiaHtml={article.odiaContent}
                 onTranslated={setTranslatedContent}
                 onTitleTranslated={setTranslatedTitle}
                 onExcerptTranslated={setTranslatedExcerpt}
@@ -280,6 +283,9 @@ export default function ArticlePage() {
                 translatedTitle={translatedTitle}
                 translatedExcerpt={translatedExcerpt}
                 translatedHtml={translatedContent}
+                officialOdiaTitle={article.odiaTitle}
+                officialOdiaExcerpt={article.odiaExcerpt}
+                officialOdiaHtml={article.odiaContent}
                 onTranslated={setTranslatedContent}
                 onTitleTranslated={setTranslatedTitle}
                 onExcerptTranslated={setTranslatedExcerpt}

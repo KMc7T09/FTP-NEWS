@@ -12,6 +12,9 @@ const blank = {
   title: '',
   excerpt: '',
   content: '',
+  odiaTitle: '',
+  odiaExcerpt: '',
+  odiaContent: '',
   featuredImageURL: '',
   categoryId: '',
   categoryName: '',
@@ -108,6 +111,29 @@ export default function ArticleEditor() {
             <label className="label">Article Body</label>
             <div className="mt-2">
               <RichTextEditor value={form.content} onChange={(value) => setField('content', value)} />
+            </div>
+          </div>
+          <div className="rounded-lg border border-red-100 bg-red-50/60 p-4">
+            <p className="section-kicker">Official Odia Version</p>
+            <h2 className="mt-2 text-xl font-extrabold text-gray-950">Admin-written Odia translation</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              If you write Odia here, users selecting Odia will see this official version instead of Google auto-translate.
+            </p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="label">Odia Title</label>
+                <input className="input mt-2" value={form.odiaTitle || ''} onChange={(event) => setField('odiaTitle', event.target.value)} placeholder="ଓଡ଼ିଆ ଶିରୋନାମ" />
+              </div>
+              <div>
+                <label className="label">Odia Excerpt</label>
+                <textarea className="input mt-2 min-h-24" value={form.odiaExcerpt || ''} onChange={(event) => setField('odiaExcerpt', event.target.value)} placeholder="ଓଡ଼ିଆ ସାରାଂଶ" />
+              </div>
+              <div>
+                <label className="label">Odia Article Body</label>
+                <div className="mt-2">
+                  <RichTextEditor value={form.odiaContent || ''} onChange={(value) => setField('odiaContent', value)} />
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -79,6 +79,9 @@ export default function ArticleListenControls({
   translatedTitle,
   translatedExcerpt,
   translatedHtml,
+  officialOdiaTitle = '',
+  officialOdiaExcerpt = '',
+  officialOdiaHtml = '',
   onTranslated,
   onTitleTranslated,
   onExcerptTranslated,
@@ -105,6 +108,15 @@ export default function ArticleListenControls({
       onReset?.();
       return {
         speechText: [title || '', excerpt || '', htmlToText(html)].filter(Boolean).join('. '),
+      };
+    }
+
+    if (target === 'or' && (officialOdiaTitle || officialOdiaExcerpt || officialOdiaHtml)) {
+      if (officialOdiaTitle) onTitleTranslated?.(officialOdiaTitle);
+      if (officialOdiaExcerpt) onExcerptTranslated?.(officialOdiaExcerpt);
+      if (officialOdiaHtml) onTranslated?.(officialOdiaHtml);
+      return {
+        speechText: [officialOdiaTitle, officialOdiaExcerpt, htmlToText(officialOdiaHtml)].filter(Boolean).join('. '),
       };
     }
 

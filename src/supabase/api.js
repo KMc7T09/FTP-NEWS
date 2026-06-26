@@ -100,7 +100,16 @@ export async function saveArticle(article) {
     request = client.from('articles').upsert(row, { onConflict: 'slug' }).select('*').single();
   }
 
-  const { data, error } = await request;
+  let { data, error } = await request;
+  if (error && String(error.message).includes('odia_')) {
+    const { odia_title, odia_excerpt, odia_content, ...fallbackRow } = row;
+    const fallbackRequest = article.id && isUuid(article.id)
+      ? client.from('articles').update(fallbackRow).eq('id', article.id).select('*').single()
+      : client.from('articles').upsert(fallbackRow, { onConflict: 'slug' }).select('*').single();
+    const fallback = await fallbackRequest;
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) throw error;
   const mapped = mapArticle(data);
   if (mapped.status === 'published') notifyArticlePublished(mapped).catch(() => {});

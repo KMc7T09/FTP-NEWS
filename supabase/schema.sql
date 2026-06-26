@@ -31,6 +31,9 @@ create table if not exists public.articles (
   slug text unique not null,
   excerpt text default '',
   content text default '',
+  odia_title text default '',
+  odia_excerpt text default '',
+  odia_content text default '',
   featured_image_url text default '',
   category_id text default '',
   category_name text default '',
@@ -49,6 +52,10 @@ create table if not exists public.articles (
   updated_at timestamptz default now(),
   published_at timestamptz
 );
+
+alter table public.articles add column if not exists odia_title text default '';
+alter table public.articles add column if not exists odia_excerpt text default '';
+alter table public.articles add column if not exists odia_content text default '';
 
 create table if not exists public.comments (
   id uuid primary key default gen_random_uuid(),

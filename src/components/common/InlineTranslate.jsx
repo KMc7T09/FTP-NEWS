@@ -60,7 +60,18 @@ export async function translateHtmlPreservingFormat(html, target) {
   return output || `<p>${escapeHtml(await translateLongText(htmlToText(html), target))}</p>`;
 }
 
-export default function InlineTranslate({ html, title = '', excerpt = '', onTranslated, onTitleTranslated, onExcerptTranslated, onReset }) {
+export default function InlineTranslate({
+  html,
+  title = '',
+  excerpt = '',
+  officialOdiaTitle = '',
+  officialOdiaExcerpt = '',
+  officialOdiaHtml = '',
+  onTranslated,
+  onTitleTranslated,
+  onExcerptTranslated,
+  onReset,
+}) {
   const [target, setTarget] = useState('hi');
   const [busy, setBusy] = useState(false);
   const selectedLabel = useMemo(() => languages.find(([code]) => code === target)?.[1] || 'Hindi', [target]);
@@ -71,6 +82,13 @@ export default function InlineTranslate({ html, title = '', excerpt = '', onTran
       if (target === 'en') {
         onReset?.();
         toast.success('Original article restored.');
+        return;
+      }
+      if (target === 'or' && (officialOdiaTitle || officialOdiaExcerpt || officialOdiaHtml)) {
+        if (officialOdiaTitle) onTitleTranslated?.(officialOdiaTitle);
+        if (officialOdiaExcerpt) onExcerptTranslated?.(officialOdiaExcerpt);
+        if (officialOdiaHtml) onTranslated?.(officialOdiaHtml);
+        toast.success('Official Odia version loaded.');
         return;
       }
       const sourceText = htmlToText(html);
