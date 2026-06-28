@@ -8,7 +8,7 @@ import ArticleCard from '../components/article/ArticleCard.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
 import ArticleListenControls from '../components/common/ArticleListenControls.jsx';
 import ArticleSummaryControls from '../components/common/ArticleSummaryControls.jsx';
-import InlineTranslate from '../components/common/InlineTranslate.jsx';
+import InlineTranslate, { translateHtmlPreservingFormat, translateLongText } from '../components/common/InlineTranslate.jsx';
 import Seo from '../components/common/Seo.jsx';
 import LoadingScreen from '../components/ui/LoadingScreen.jsx';
 import {
@@ -41,6 +41,19 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#039;');
 }
 
+const pdfLanguages = [
+  ['en', 'English'],
+  ['hi', 'Hindi'],
+  ['or', 'Odia'],
+  ['bn', 'Bengali'],
+  ['ta', 'Tamil'],
+  ['te', 'Telugu'],
+  ['mr', 'Marathi'],
+  ['gu', 'Gujarati'],
+  ['pa', 'Punjabi'],
+  ['ur', 'Urdu'],
+];
+
 export default function ArticlePage() {
   const { slug } = useParams();
   const { currentUser, profile, isBanned, loading } = useAuth();
@@ -56,6 +69,8 @@ export default function ArticlePage() {
   const [translatedContent, setTranslatedContent] = useState('');
   const [translatedTitle, setTranslatedTitle] = useState('');
   const [translatedExcerpt, setTranslatedExcerpt] = useState('');
+  const [pdfLanguage, setPdfLanguage] = useState('en');
+  const [pdfBusy, setPdfBusy] = useState(false);
   const canInteractWithArticle = Boolean(article?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(article.id));
 
   async function getRealArticleForAction() {
@@ -185,64 +200,129 @@ export default function ArticlePage() {
     window.open(urls[platform], '_blank', 'noopener,noreferrer');
   }
 
-  function downloadArticlePdf() {
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+  async function getPdfContent(target) {
+    if (target === 'en') {
+      return {
+        title: article.title,
+        excerpt: article.excerpt,
+        body: article.content,
+        languageLabel: 'English',
+      };
+    }
+
+    const languageLabel = pdfLanguages.find(([code]) => code === target)?.[1] || 'Selected language';
+
+    if (target === 'or' && (article.odiaTitle || article.odiaExcerpt || article.odiaContent)) {
+      return {
+        title: article.odiaTitle || article.title,
+        excerpt: article.odiaExcerpt || article.excerpt,
+        body: article.odiaContent || article.content,
+        languageLabel: 'Odia',
+      };
+    }
+
+    const [title, excerpt, body] = await Promise.all([
+      article.title ? translateLongText(article.title, target) : Promise.resolve(''),
+      article.excerpt ? translateLongText(article.excerpt, target) : Promise.resolve(''),
+      translateHtmlPreservingFormat(article.content, target),
+    ]);
+
+    return {
+      title: title || article.title,
+      excerpt: excerpt || article.excerpt,
+      body: body || article.content,
+      languageLabel,
+    };
+  }
+
+  async function downloadArticlePdf(target = 'en') {
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast.error('Popup blocked. Please allow popups to download PDF.');
       return;
     }
 
-    const title = translatedTitle || article.title;
-    const excerpt = translatedExcerpt || article.excerpt;
-    const body = translatedContent || article.content;
-    const author = cleanAuthorName(article.authorName, 'FTP Desk');
-    const image = article.featuredImageURL || '';
-    const source = article.sourceURL
-      ? `<p><strong>Source:</strong> <a href="${escapeHtml(article.sourceURL)}">${escapeHtml(article.sourceName || article.sourceURL)}</a></p>`
-      : article.sourceName
-        ? `<p><strong>Source:</strong> ${escapeHtml(article.sourceName)}</p>`
-        : '';
-
+    setPdfBusy(true);
     printWindow.document.write(`
       <!doctype html>
       <html>
         <head>
-          <title>${escapeHtml(title)} - FTP</title>
+          <title>Preparing FTP PDF...</title>
           <meta charset="utf-8" />
           <style>
-            body { font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 36px; line-height: 1.65; }
-            .brand { font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .14em; color: #dc1f2a; text-transform: uppercase; }
-            h1 { font-size: 34px; line-height: 1.12; margin: 12px 0; }
-            .excerpt { font-size: 18px; color: #4b5563; }
-            .meta, .source { font-family: Arial, sans-serif; color: #4b5563; font-size: 13px; }
-            img { width: 100%; max-height: 420px; object-fit: cover; margin: 24px 0; border-radius: 8px; }
-            article { font-size: 17px; }
-            footer { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
-            @page { margin: 18mm; }
+            body { font-family: Arial, sans-serif; padding: 40px; color: #111827; }
+            .box { border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; max-width: 680px; }
+            .brand { color: #dc1f2a; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
           </style>
         </head>
         <body>
-          <div class="brand">FTP - Fresh Take Politics</div>
-          <h1>${escapeHtml(title)}</h1>
-          <p class="excerpt">${escapeHtml(excerpt)}</p>
-          <p class="meta">By ${escapeHtml(author)} | ${escapeHtml(formatDate(article.publishedAt))} | ${escapeHtml(article.categoryName || 'News')}</p>
-          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : ''}
-          <article>${body}</article>
-          <div class="source">${source}</div>
-          <footer>Downloaded from FTP - Fresh Take Politics. ${escapeHtml(window.location.href)}</footer>
-          <script>
-            window.onload = function () {
-              setTimeout(function () {
-                window.print();
-                window.close();
-              }, 400);
-            };
-          </script>
+          <div class="box">
+            <p class="brand">FTP - Fresh Take Politics</p>
+            <h1>Preparing PDF...</h1>
+            <p>Please wait. Translation and article layout are loading.</p>
+          </div>
         </body>
       </html>
     `);
     printWindow.document.close();
-    toast.success('PDF window opened. Choose Save as PDF.');
+
+    try {
+      const { title, excerpt, body, languageLabel } = await getPdfContent(target);
+      const author = cleanAuthorName(article.authorName, 'FTP Desk');
+      const image = article.featuredImageURL || '';
+      const source = article.sourceURL
+        ? `<p><strong>Source:</strong> <a href="${escapeHtml(article.sourceURL)}">${escapeHtml(article.sourceName || article.sourceURL)}</a></p>`
+        : article.sourceName
+          ? `<p><strong>Source:</strong> ${escapeHtml(article.sourceName)}</p>`
+          : '';
+
+      printWindow.document.open();
+      printWindow.document.write(`
+        <!doctype html>
+        <html>
+          <head>
+            <title>${escapeHtml(title)} - FTP</title>
+            <meta charset="utf-8" />
+            <style>
+              body { font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 36px; line-height: 1.65; }
+              .brand { font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .14em; color: #dc1f2a; text-transform: uppercase; }
+              h1 { font-size: 34px; line-height: 1.12; margin: 12px 0; }
+              .excerpt { font-size: 18px; color: #4b5563; }
+              .meta, .source, .language { font-family: Arial, sans-serif; color: #4b5563; font-size: 13px; }
+              img { width: 100%; max-height: 420px; object-fit: cover; margin: 24px 0; border-radius: 8px; }
+              article { font-size: 17px; }
+              footer { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
+              @page { margin: 18mm; }
+            </style>
+          </head>
+          <body>
+            <div class="brand">FTP - Fresh Take Politics</div>
+            <h1>${escapeHtml(title)}</h1>
+            <p class="excerpt">${escapeHtml(excerpt)}</p>
+            <p class="meta">By ${escapeHtml(author)} | ${escapeHtml(formatDate(article.publishedAt))} | ${escapeHtml(article.categoryName || 'News')}</p>
+            <p class="language">PDF language: ${escapeHtml(languageLabel)}</p>
+            ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : ''}
+            <article>${body}</article>
+            <div class="source">${source}</div>
+            <footer>Downloaded from FTP - Fresh Take Politics. ${escapeHtml(window.location.href)}</footer>
+            <script>
+              window.onload = function () {
+                setTimeout(function () {
+                  window.print();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      toast.success('PDF ready. Choose Save as PDF.');
+    } catch (error) {
+      printWindow.close();
+      toast.error(error.message || 'PDF download failed.');
+    } finally {
+      setPdfBusy(false);
+    }
   }
 
   async function reportComment(item) {
@@ -331,9 +411,21 @@ export default function ArticlePage() {
                 <button className="btn-secondary" onClick={shareArticle}>
                   <Share2 size={16} /> Share
                 </button>
-                <button className="btn-secondary" onClick={downloadArticlePdf}>
-                  <Download size={16} /> PDF
-                </button>
+                <div className="flex overflow-hidden rounded-md border border-gray-300 bg-white">
+                  <select
+                    className="h-10 border-0 bg-white px-3 text-sm font-bold text-gray-700 outline-none"
+                    value={pdfLanguage}
+                    onChange={(event) => setPdfLanguage(event.target.value)}
+                    aria-label="PDF language"
+                  >
+                    {pdfLanguages.map(([code, label]) => (
+                      <option key={code} value={code}>{label}</option>
+                    ))}
+                  </select>
+                  <button className="inline-flex h-10 items-center gap-2 bg-gray-950 px-3 text-sm font-bold text-white hover:bg-brand-red disabled:cursor-not-allowed disabled:opacity-70" onClick={() => downloadArticlePdf(pdfLanguage)} disabled={pdfBusy}>
+                    <Download size={16} /> {pdfBusy ? 'Preparing...' : 'PDF'}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
