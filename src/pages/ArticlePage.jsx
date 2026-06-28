@@ -284,18 +284,60 @@ export default function ArticlePage() {
             <title>${escapeHtml(title)} - FTP</title>
             <meta charset="utf-8" />
             <style>
-              body { font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 36px; line-height: 1.65; }
+              * { box-sizing: border-box; }
+              body { font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 72px 36px 64px; line-height: 1.65; }
+              .pdf-header, .pdf-footer {
+                position: fixed;
+                left: 0;
+                right: 0;
+                background: #fff;
+                font-family: Arial, sans-serif;
+                color: #111827;
+              }
+              .pdf-header {
+                top: 0;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 12px 36px 10px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+              }
+              .pdf-footer {
+                bottom: 0;
+                border-top: 1px solid #e5e7eb;
+                padding: 10px 36px;
+                font-size: 11px;
+                color: #6b7280;
+              }
+              .logo { font-size: 24px; font-weight: 900; letter-spacing: -0.04em; }
+              .tagline { font-size: 10px; font-weight: 900; letter-spacing: .18em; color: #dc1f2a; text-transform: uppercase; }
+              .header-author { text-align: right; font-size: 11px; color: #4b5563; }
               .brand { font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .14em; color: #dc1f2a; text-transform: uppercase; }
-              h1 { font-size: 34px; line-height: 1.12; margin: 12px 0; }
+              h1 { font-size: 34px; line-height: 1.12; margin: 12px 0; page-break-after: avoid; }
               .excerpt { font-size: 18px; color: #4b5563; }
               .meta, .source, .language { font-family: Arial, sans-serif; color: #4b5563; font-size: 13px; }
-              img { width: 100%; max-height: 420px; object-fit: cover; margin: 24px 0; border-radius: 8px; }
+              img { width: 100%; max-height: 420px; object-fit: cover; margin: 24px 0; border-radius: 8px; page-break-inside: avoid; }
               article { font-size: 17px; }
-              footer { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
-              @page { margin: 18mm; }
+              article p, article blockquote, article li { page-break-inside: avoid; }
+              .end-note { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
+              @page { margin: 14mm; }
             </style>
           </head>
           <body>
+            <header class="pdf-header">
+              <div>
+                <div class="logo">FTP</div>
+                <div class="tagline">Fresh Take Politics</div>
+              </div>
+              <div class="header-author">
+                <strong>${escapeHtml(author)}</strong><br />
+                ${escapeHtml(article.categoryName || 'News')} | ${escapeHtml(formatDate(article.publishedAt))}
+              </div>
+            </header>
+            <footer class="pdf-footer">
+              FTP - Fresh Take Politics | Author: ${escapeHtml(author)} | ${escapeHtml(window.location.href)}
+            </footer>
             <div class="brand">FTP - Fresh Take Politics</div>
             <h1>${escapeHtml(title)}</h1>
             <p class="excerpt">${escapeHtml(excerpt)}</p>
@@ -304,7 +346,7 @@ export default function ArticlePage() {
             ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : ''}
             <article>${body}</article>
             <div class="source">${source}</div>
-            <footer>Downloaded from FTP - Fresh Take Politics. ${escapeHtml(window.location.href)}</footer>
+            <div class="end-note">Downloaded from FTP - Fresh Take Politics.</div>
             <script>
               window.onload = function () {
                 setTimeout(function () {
@@ -411,20 +453,23 @@ export default function ArticlePage() {
                 <button className="btn-secondary" onClick={shareArticle}>
                   <Share2 size={16} /> Share
                 </button>
-                <div className="flex overflow-hidden rounded-md border border-gray-300 bg-white">
-                  <select
-                    className="h-10 border-0 bg-white px-3 text-sm font-bold text-gray-700 outline-none"
-                    value={pdfLanguage}
-                    onChange={(event) => setPdfLanguage(event.target.value)}
-                    aria-label="PDF language"
-                  >
-                    {pdfLanguages.map(([code, label]) => (
-                      <option key={code} value={code}>{label}</option>
-                    ))}
-                  </select>
-                  <button className="inline-flex h-10 items-center gap-2 bg-gray-950 px-3 text-sm font-bold text-white hover:bg-brand-red disabled:cursor-not-allowed disabled:opacity-70" onClick={() => downloadArticlePdf(pdfLanguage)} disabled={pdfBusy}>
-                    <Download size={16} /> {pdfBusy ? 'Preparing...' : 'PDF'}
-                  </button>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                  <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Download article</label>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 outline-none"
+                      value={pdfLanguage}
+                      onChange={(event) => setPdfLanguage(event.target.value)}
+                      aria-label="PDF language"
+                    >
+                      {pdfLanguages.map(([code, label]) => (
+                        <option key={code} value={code}>{label}</option>
+                      ))}
+                    </select>
+                    <button className="inline-flex h-10 items-center gap-2 rounded-md bg-gray-950 px-4 text-sm font-extrabold text-white hover:bg-brand-red disabled:cursor-not-allowed disabled:opacity-70" onClick={() => downloadArticlePdf(pdfLanguage)} disabled={pdfBusy}>
+                      <Download size={16} /> {pdfBusy ? 'Preparing...' : 'Download PDF'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
