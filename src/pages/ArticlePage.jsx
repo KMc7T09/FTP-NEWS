@@ -1,9 +1,9 @@
-import { Bookmark, Copy, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Bookmark, Copy, Download, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
-import { formatDate, readTime } from '../utils/format.js';
+import { cleanAuthorName, formatDate, readTime } from '../utils/format.js';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
 import ArticleListenControls from '../components/common/ArticleListenControls.jsx';
@@ -25,6 +25,21 @@ import {
   toggleLike,
 } from '../supabase/api.js';
 import { getModerationReason, hasVulgarContent } from '../utils/moderation.js';
+
+function stripHtml(value = '') {
+  const element = document.createElement('div');
+  element.innerHTML = value;
+  return element.textContent || element.innerText || '';
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export default function ArticlePage() {
   const { slug } = useParams();
@@ -170,6 +185,66 @@ export default function ArticlePage() {
     window.open(urls[platform], '_blank', 'noopener,noreferrer');
   }
 
+  function downloadArticlePdf() {
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!printWindow) {
+      toast.error('Popup blocked. Please allow popups to download PDF.');
+      return;
+    }
+
+    const title = translatedTitle || article.title;
+    const excerpt = translatedExcerpt || article.excerpt;
+    const body = translatedContent || article.content;
+    const author = cleanAuthorName(article.authorName, 'FTP Desk');
+    const image = article.featuredImageURL || '';
+    const source = article.sourceURL
+      ? `<p><strong>Source:</strong> <a href="${escapeHtml(article.sourceURL)}">${escapeHtml(article.sourceName || article.sourceURL)}</a></p>`
+      : article.sourceName
+        ? `<p><strong>Source:</strong> ${escapeHtml(article.sourceName)}</p>`
+        : '';
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(title)} - FTP</title>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 36px; line-height: 1.65; }
+            .brand { font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .14em; color: #dc1f2a; text-transform: uppercase; }
+            h1 { font-size: 34px; line-height: 1.12; margin: 12px 0; }
+            .excerpt { font-size: 18px; color: #4b5563; }
+            .meta, .source { font-family: Arial, sans-serif; color: #4b5563; font-size: 13px; }
+            img { width: 100%; max-height: 420px; object-fit: cover; margin: 24px 0; border-radius: 8px; }
+            article { font-size: 17px; }
+            footer { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
+            @page { margin: 18mm; }
+          </style>
+        </head>
+        <body>
+          <div class="brand">FTP - Fresh Take Politics</div>
+          <h1>${escapeHtml(title)}</h1>
+          <p class="excerpt">${escapeHtml(excerpt)}</p>
+          <p class="meta">By ${escapeHtml(author)} | ${escapeHtml(formatDate(article.publishedAt))} | ${escapeHtml(article.categoryName || 'News')}</p>
+          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />` : ''}
+          <article>${body}</article>
+          <div class="source">${source}</div>
+          <footer>Downloaded from FTP - Fresh Take Politics. ${escapeHtml(window.location.href)}</footer>
+          <script>
+            window.onload = function () {
+              setTimeout(function () {
+                window.print();
+                window.close();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    toast.success('PDF window opened. Choose Save as PDF.');
+  }
+
   async function reportComment(item) {
     if (!currentUser) return toast.error('Please log in to report.');
     toast.success('Report received.');
@@ -198,7 +273,7 @@ export default function ArticlePage() {
               image: article.featuredImageURL ? [article.featuredImageURL] : undefined,
               datePublished: article.publishedAt,
               dateModified: article.updatedAt || article.publishedAt,
-              author: { '@type': 'Person', name: article.authorName || 'FTP Desk' },
+              author: { '@type': 'Person', name: cleanAuthorName(article.authorName, 'FTP Desk') },
               publisher: { '@type': 'Organization', name: 'FTP - Fresh Take Politics' },
               mainEntityOfPage: typeof window !== 'undefined' ? window.location.href : undefined,
             },
@@ -236,7 +311,7 @@ export default function ArticlePage() {
             </div>
             <div className="mt-5 grid gap-4 border-y border-gray-200 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <span className="text-sm font-semibold text-gray-700">By {article.authorName || 'News Desk'}</span>
+                <span className="text-sm font-semibold text-gray-700">By {cleanAuthorName(article.authorName, 'News Desk')}</span>
                 <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold uppercase tracking-wide text-gray-500">
                   <span>{likeCount} likes</span>
                   <span>{commentCount} comments</span>
@@ -255,6 +330,9 @@ export default function ArticlePage() {
                 </span>
                 <button className="btn-secondary" onClick={shareArticle}>
                   <Share2 size={16} /> Share
+                </button>
+                <button className="btn-secondary" onClick={downloadArticlePdf}>
+                  <Download size={16} /> PDF
                 </button>
               </div>
             </div>

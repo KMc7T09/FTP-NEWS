@@ -1,3 +1,5 @@
+import { cleanAuthorName } from '../utils/format.js';
+
 export function mapArticle(row = {}) {
   return {
     id: row.id,
@@ -14,7 +16,7 @@ export function mapArticle(row = {}) {
     categorySlug: row.category_slug || '',
     tags: row.tags || [],
     authorId: row.author_id || '',
-    authorName: row.author_name || 'FTP Desk',
+    authorName: cleanAuthorName(row.author_name, 'FTP Desk'),
     status: row.status || 'draft',
     isFeatured: Boolean(row.is_featured),
     isTrending: Boolean(row.is_trending),
@@ -45,7 +47,7 @@ export function articleToRow(article = {}) {
     category_slug: article.categorySlug || '',
     tags: Array.isArray(article.tags) ? article.tags : [],
     author_id: article.authorId || null,
-    author_name: article.authorName || 'FTP Desk',
+    author_name: cleanAuthorName(article.authorName, 'FTP Desk'),
     status: article.status || 'draft',
     is_featured: Boolean(article.isFeatured),
     is_trending: Boolean(article.isTrending),

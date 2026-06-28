@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { createSlug } from '../../utils/slug.js';
-import { excerptFrom } from '../../utils/format.js';
+import { cleanAuthorName, excerptFrom } from '../../utils/format.js';
 import RichTextEditor from '../../components/common/RichTextEditor.jsx';
 import { getArticle, listCategories, saveArticle } from '../../supabase/api.js';
 import { staticCategories } from '../../data/demoContent.js';
@@ -53,7 +53,7 @@ export default function ArticleEditor() {
 
   useEffect(() => {
     if (id || form.authorName) return;
-    setField('authorName', profile?.name || currentUser?.email || 'R.C. Khotei');
+    setField('authorName', cleanAuthorName(profile?.name || '', 'R.C. Khotei'));
   }, [currentUser?.email, form.authorName, id, profile?.name]);
 
   function setField(key, value) {
@@ -77,7 +77,7 @@ export default function ArticleEditor() {
         categorySlug,
         tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
         authorId: currentUser.id,
-        authorName: form.authorName || profile?.name || currentUser.email || 'R.C. Khotei',
+        authorName: cleanAuthorName(form.authorName || profile?.name || currentUser.email, 'R.C. Khotei'),
         publishedAt: form.status === 'published' ? form.publishedAt || new Date().toISOString() : null,
       });
       toast.success(id ? 'Article updated.' : 'Article created.');

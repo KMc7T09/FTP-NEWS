@@ -18,6 +18,34 @@ function Stat({ label, value, icon: Icon }) {
   );
 }
 
+function getDevice(userAgent = '') {
+  const ua = String(userAgent).toLowerCase();
+  if (/ipad|tablet/.test(ua)) return 'Tablet';
+  if (/mobi|android|iphone|phone/.test(ua)) return 'Mobile';
+  if (/windows|macintosh|linux|x11/.test(ua)) return 'Desktop';
+  return 'Unknown';
+}
+
+function getBrowser(userAgent = '') {
+  const ua = String(userAgent);
+  if (/Edg\//.test(ua)) return 'Edge';
+  if (/OPR\//.test(ua)) return 'Opera';
+  if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) return 'Chrome';
+  if (/Firefox\//.test(ua)) return 'Firefox';
+  if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) return 'Safari';
+  return 'Unknown';
+}
+
+function getOS(userAgent = '') {
+  const ua = String(userAgent);
+  if (/Windows NT/.test(ua)) return 'Windows';
+  if (/Android/.test(ua)) return 'Android';
+  if (/iPhone|iPad|iPod/.test(ua)) return 'iOS';
+  if (/Mac OS X|Macintosh/.test(ua)) return 'macOS';
+  if (/Linux/.test(ua)) return 'Linux';
+  return 'Unknown';
+}
+
 export default function VisitorAnalytics() {
   const { isSuperAdmin } = useAuth();
   const [visits, setVisits] = useState([]);
@@ -37,7 +65,8 @@ export default function VisitorAnalytics() {
     const unique = new Set(visits.map((item) => item.visitor_id)).size;
     const joined = visits.filter((item) => item.user_id).length;
     const articles = visits.filter((item) => item.path?.startsWith('/article/')).length;
-    return { total: visits.length, unique, joined, articles };
+    const mobile = visits.filter((item) => getDevice(item.user_agent) === 'Mobile').length;
+    return { total: visits.length, unique, joined, articles, mobile };
   }, [visits]);
 
   const topPages = useMemo(() => {
@@ -66,6 +95,9 @@ export default function VisitorAnalytics() {
     { key: 'visitor_id', label: 'Visitor', render: (row) => <span className="break-all text-xs">{row.visitor_id}</span> },
     { key: 'ip_address', label: 'IP Address', render: (row) => <span className="font-mono text-xs">{row.ip_address || '-'}</span> },
     { key: 'user_id', label: 'Joined User', render: (row) => (row.user_id ? <span className="text-green-700">Yes</span> : <span className="text-gray-500">No</span>) },
+    { key: 'device', label: 'Device', render: (row) => <span className="font-semibold">{getDevice(row.user_agent)}</span> },
+    { key: 'browser', label: 'Browser', render: (row) => getBrowser(row.user_agent) },
+    { key: 'os', label: 'OS', render: (row) => getOS(row.user_agent) },
     { key: 'language', label: 'Lang' },
     { key: 'screen', label: 'Screen' },
     { key: 'referrer', label: 'Referrer', render: (row) => <span className="break-all text-xs">{row.referrer || '-'}</span> },
@@ -81,11 +113,12 @@ export default function VisitorAnalytics() {
         </div>
         <button className="btn-secondary" onClick={loadVisits}><RefreshCw size={16} /> Refresh</button>
       </div>
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mb-6 grid gap-4 md:grid-cols-5">
         <Stat label="Recent Visits" value={stats.total} icon={Eye} />
         <Stat label="Unique Visitors" value={stats.unique} icon={Users} />
         <Stat label="Joined Visits" value={stats.joined} icon={UserCheck} />
         <Stat label="Article Reads" value={stats.articles} icon={MonitorSmartphone} />
+        <Stat label="Mobile Visits" value={stats.mobile} icon={MonitorSmartphone} />
       </div>
       <div className="mb-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="dashboard-card">

@@ -21,3 +21,13 @@ export function excerptFrom(content = '', max = 160) {
   const text = String(content).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 }
+
+export function cleanAuthorName(value = '', fallback = 'R.C. Khotei') {
+  const cleaned = String(value || '')
+    .replace(/\bkmc\s*7\s*t\s*09\b/gi, '')
+    .replace(/\bkmc7t09\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned || fallback;
+}
