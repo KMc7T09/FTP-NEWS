@@ -431,48 +431,70 @@ export default function ArticlePage() {
               <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{translatedTitle || article.title}</h1>
               <p className="mt-4 text-lg leading-8 text-gray-600">{translatedExcerpt || article.excerpt}</p>
             </div>
-            <div className="mt-5 grid gap-4 border-y border-gray-200 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div>
-                <span className="text-sm font-semibold text-gray-700">By {cleanAuthorName(article.authorName, 'News Desk')}</span>
-                <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold uppercase tracking-wide text-gray-500">
-                  <span>{likeCount} likes</span>
-                  <span>{commentCount} comments</span>
-                  <span>{article.shares || 0} shares</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                <button className={bookmarked ? 'btn-primary' : 'btn-secondary'} onClick={bookmarkArticle}>
-                  <Bookmark size={16} /> {bookmarked ? 'Bookmarked' : 'Bookmark'}
-                </button>
-                <button className={liked ? 'btn-primary bg-red-600 hover:bg-red-700' : 'btn-secondary'} onClick={likeArticle} disabled={liking}>
-                  <Heart size={16} fill={liked ? 'currentColor' : 'none'} /> {liked ? 'Unlike' : 'Like'} ({likeCount})
-                </button>
-                <span className="btn-secondary cursor-default">
-                  <MessageCircle size={16} /> {commentCount}
-                </span>
-                <button className="btn-secondary" onClick={shareArticle}>
-                  <Share2 size={16} /> Share
-                </button>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                  <label className="mb-1 block text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Download article</label>
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      className="h-10 rounded-md border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 outline-none"
-                      value={pdfLanguage}
-                      onChange={(event) => setPdfLanguage(event.target.value)}
-                      aria-label="PDF language"
-                    >
-                      {pdfLanguages.map(([code, label]) => (
-                        <option key={code} value={code}>{label}</option>
-                      ))}
-                    </select>
-                    <button className="inline-flex h-10 items-center gap-2 rounded-md bg-gray-950 px-4 text-sm font-extrabold text-white hover:bg-brand-red disabled:cursor-not-allowed disabled:opacity-70" onClick={() => downloadArticlePdf(pdfLanguage)} disabled={pdfBusy}>
-                      <Download size={16} /> {pdfBusy ? 'Preparing...' : 'Download PDF'}
-                    </button>
+            <section className="mt-5 rounded-xl border border-gray-200 bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Published by</p>
+                  <p className="mt-1 truncate text-base font-extrabold text-gray-950">{cleanAuthorName(article.authorName, 'News Desk')}</p>
+                  <div className="mt-3 grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 text-center sm:max-w-md">
+                    <div className="border-r border-gray-200 px-3 py-2">
+                      <p className="text-base font-extrabold text-gray-950">{likeCount}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Likes</p>
+                    </div>
+                    <div className="border-r border-gray-200 px-3 py-2">
+                      <p className="text-base font-extrabold text-gray-950">{commentCount}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Comments</p>
+                    </div>
+                    <div className="px-3 py-2">
+                      <p className="text-base font-extrabold text-gray-950">{article.shares || 0}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Shares</p>
+                    </div>
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-2 xl:justify-end">
+                  <button
+                    className={`inline-flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-extrabold transition ${liked ? 'border-red-600 bg-red-600 text-white hover:bg-red-700' : 'border-gray-200 bg-white text-gray-800 hover:border-red-200 hover:bg-red-50 hover:text-brand-red'}`}
+                    onClick={likeArticle}
+                    disabled={liking}
+                  >
+                    <Heart size={17} fill={liked ? 'currentColor' : 'none'} /> {liked ? 'Liked' : 'Like'}
+                  </button>
+                  <button
+                    className={`inline-flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-extrabold transition ${bookmarked ? 'border-gray-950 bg-gray-950 text-white hover:bg-gray-800' : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50'}`}
+                    onClick={bookmarkArticle}
+                  >
+                    <Bookmark size={17} fill={bookmarked ? 'currentColor' : 'none'} /> {bookmarked ? 'Saved' : 'Save'}
+                  </button>
+                  <a href="#comments" className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-extrabold text-gray-800 transition hover:border-gray-300 hover:bg-gray-50">
+                    <MessageCircle size={17} /> Comment
+                  </a>
+                  <button className="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-extrabold text-gray-800 transition hover:border-gray-300 hover:bg-gray-50" onClick={shareArticle}>
+                    <Share2 size={17} /> Share
+                  </button>
+                </div>
               </div>
-            </div>
+              <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Download article</p>
+                  <p className="text-sm text-gray-600">Choose a language and save this story as PDF.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 outline-none"
+                    value={pdfLanguage}
+                    onChange={(event) => setPdfLanguage(event.target.value)}
+                    aria-label="PDF language"
+                  >
+                    {pdfLanguages.map(([code, label]) => (
+                      <option key={code} value={code}>{label}</option>
+                    ))}
+                  </select>
+                  <button className="inline-flex h-10 items-center gap-2 rounded-lg bg-gray-950 px-4 text-sm font-extrabold text-white hover:bg-brand-red disabled:cursor-not-allowed disabled:opacity-70" onClick={() => downloadArticlePdf(pdfLanguage)} disabled={pdfBusy}>
+                    <Download size={16} /> {pdfBusy ? 'Preparing...' : 'Download PDF'}
+                  </button>
+                </div>
+              </div>
+            </section>
             <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
               <div className="flex flex-wrap items-center gap-3">
               <InlineTranslate
@@ -552,7 +574,7 @@ export default function ArticlePage() {
             </div>
             <AdSlot label="Article Bottom Ad Slot" position="article-bottom" className="my-8" />
 
-            <section className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">
+            <section id="comments" className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">
               <h2 className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
                 Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{commentCount}</span>
               </h2>
