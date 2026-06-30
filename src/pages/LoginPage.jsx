@@ -15,12 +15,14 @@ function normalizePhone(value = '') {
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { login, loginWithGoogle, resetPassword, sendPhoneOtp, verifyPhoneOtp } = useAuth();
+  const { login, loginWithGoogle, resetPassword, sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } = useAuth();
 
   async function submit(event) {
     event.preventDefault();
@@ -39,6 +41,33 @@ export default function LoginPage() {
     if (!email) return toast.error('Enter your email first.');
     await resetPassword(email);
     toast.success('Password reset email sent.');
+  }
+
+  async function sendEmailLoginOtp() {
+    if (!email) return toast.error('Enter your email first.');
+    setBusy(true);
+    try {
+      await sendEmailOtp(email);
+      setEmailOtpSent(true);
+      toast.success('Login link sent. If your email template has OTP code, enter it here.');
+    } catch (error) {
+      toast.error(error.message || 'Email OTP failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyEmailLoginOtp() {
+    if (!email || !emailOtp) return toast.error('Enter email and OTP code.');
+    setBusy(true);
+    try {
+      await verifyEmailOtp(email, emailOtp);
+      navigate('/profile');
+    } catch (error) {
+      toast.error(error.message || 'Email OTP verification failed. You can also click the email magic link.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function sendOtp(event) {
@@ -84,6 +113,19 @@ export default function LoginPage() {
           <button className="btn-primary mt-5 w-full" disabled={busy}>
             <Mail size={16} /> Login
           </button>
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Free Email OTP / Magic Link</p>
+            <p className="mt-1 text-xs leading-5 text-gray-600">No SMS cost. Supabase sends a secure login email.</p>
+            {emailOtpSent ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <input className="input" value={emailOtp} onChange={(event) => setEmailOtp(event.target.value)} placeholder="OTP code from email" />
+                <button type="button" className="btn-secondary" onClick={verifyEmailLoginOtp} disabled={busy}>Verify</button>
+              </div>
+            ) : null}
+            <button type="button" className="btn-secondary mt-3 w-full" onClick={sendEmailLoginOtp} disabled={busy}>
+              <Mail size={16} /> {emailOtpSent ? 'Resend Login Email' : 'Send Login Email'}
+            </button>
+          </div>
           <button type="button" className="btn-secondary mt-3 w-full" onClick={loginWithGoogle}>
             Continue with Google
           </button>

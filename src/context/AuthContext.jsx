@@ -150,6 +150,28 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
+  async function sendEmailOtp(email) {
+    if (!supabaseReady) throw new Error('Supabase is not configured.');
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
+    return email;
+  }
+
+  async function verifyEmailOtp(email, token) {
+    if (!supabaseReady) throw new Error('Supabase is not configured.');
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) throw error;
+    if (data.user) await withTimeout(upsertProfile(userToProfile(data.user)), 'Profile setup took too long.');
+    if (data.user) await withTimeout(loadProfile(data.user), 'Profile loading took too long.');
+    return data.user;
+  }
+
   async function sendPhoneOtp(phone) {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
     const normalized = normalizePhone(phone);
@@ -198,6 +220,8 @@ export function AuthProvider({ children }) {
       signup,
       login,
       loginWithGoogle,
+      sendEmailOtp,
+      verifyEmailOtp,
       sendPhoneOtp,
       verifyPhoneOtp,
       logout,

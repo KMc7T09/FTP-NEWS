@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { cleanAuthorName, formatDate, readTime } from '../utils/format.js';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
+import ArticleFactCheckControls from '../components/common/ArticleFactCheckControls.jsx';
 import ArticleListenControls from '../components/common/ArticleListenControls.jsx';
 import ArticleSummaryControls from '../components/common/ArticleSummaryControls.jsx';
 import InlineTranslate, { translateHtmlPreservingFormat, translateLongText } from '../components/common/InlineTranslate.jsx';
@@ -539,6 +540,11 @@ export default function ArticlePage() {
                 translatedTitle={translatedTitle}
                 translatedExcerpt={translatedExcerpt}
                 translatedHtml={translatedContent}
+              />
+              <ArticleFactCheckControls
+                title={translatedTitle || article.title}
+                excerpt={translatedExcerpt || article.excerpt}
+                html={translatedContent || article.content}
               />
               </div>
             </div>
