@@ -17,6 +17,7 @@ export default function ArticleAIVerifyControls({ title, excerpt, html, sourceNa
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
+  const [quotaLimited, setQuotaLimited] = useState(false);
   const [busy, setBusy] = useState(false);
   const articleText = useMemo(() => htmlToText(html), [html]);
 
@@ -30,6 +31,7 @@ export default function ArticleAIVerifyControls({ title, excerpt, html, sourceNa
     setBusy(true);
     setQuestion(finalQuestion);
     setAnswer('');
+    setQuotaLimited(false);
     try {
       const response = await fetch('/.netlify/functions/article-ai', {
         method: 'POST',
@@ -46,7 +48,8 @@ export default function ArticleAIVerifyControls({ title, excerpt, html, sourceNa
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'AI answer failed.');
       setAnswer(data.answer);
-      toast.success('AI answer ready.');
+      setQuotaLimited(Boolean(data.quotaLimited));
+      toast.success(data.quotaLimited ? 'Verification guide ready.' : 'AI answer ready.');
     } catch (error) {
       toast.error(error.message || 'AI answer failed.');
     } finally {
@@ -90,6 +93,11 @@ export default function ArticleAIVerifyControls({ title, excerpt, html, sourceNa
           </div>
           {answer ? (
             <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              {quotaLimited ? (
+                <p className="mb-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs font-bold text-yellow-900">
+                  Gemini live AI quota is unavailable right now. Showing article-based verification guidance.
+                </p>
+              ) : null}
               <p className="whitespace-pre-line text-sm leading-6 text-gray-800">{answer}</p>
             </div>
           ) : null}
