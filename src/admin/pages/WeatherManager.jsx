@@ -27,7 +27,9 @@ export default function WeatherManager() {
   async function generateToday() {
     setGenerating(true);
     try {
-      const response = await fetch('/.netlify/functions/generate-weather', { method: 'POST' });
+      const response = await fetch('/.netlify/functions/generate-weather', { method: 'POST' }).catch(() => {
+        throw new Error('Weather function is not reachable. Redeploy Netlify after pushing the latest code, then try again.');
+      });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.ok === false) throw new Error(data.error || 'Weather generation failed.');
       toast.success(`Weather report saved for ${data.saved || 0} cities.`);

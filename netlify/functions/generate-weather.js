@@ -6,12 +6,12 @@ const CITIES = [
   { city: 'Sambalpur', state: 'Odisha', latitude: 21.4669, longitude: 83.9812 },
   { city: 'Berhampur', state: 'Odisha', latitude: 19.3149, longitude: 84.7941 },
   { city: 'Balasore', state: 'Odisha', latitude: 21.4934, longitude: 86.9135 },
-  { city: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.2090 },
-  { city: 'Mumbai', state: 'Maharashtra', latitude: 19.0760, longitude: 72.8777 },
+  { city: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.209 },
+  { city: 'Mumbai', state: 'Maharashtra', latitude: 19.076, longitude: 72.8777 },
   { city: 'Kolkata', state: 'West Bengal', latitude: 22.5726, longitude: 88.3639 },
   { city: 'Chennai', state: 'Tamil Nadu', latitude: 13.0827, longitude: 80.2707 },
   { city: 'Bengaluru', state: 'Karnataka', latitude: 12.9716, longitude: 77.5946 },
-  { city: 'Hyderabad', state: 'Telangana', latitude: 17.3850, longitude: 78.4867 },
+  { city: 'Hyderabad', state: 'Telangana', latitude: 17.385, longitude: 78.4867 },
   { city: 'Ahmedabad', state: 'Gujarat', latitude: 23.0225, longitude: 72.5714 },
   { city: 'Pune', state: 'Maharashtra', latitude: 18.5204, longitude: 73.8567 },
   { city: 'Jaipur', state: 'Rajasthan', latitude: 26.9124, longitude: 75.7873 },
@@ -45,9 +45,27 @@ exports.config = {
 function json(statusCode, body) {
   return {
     statusCode,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    },
     body: JSON.stringify(body),
   };
+}
+
+async function fetchWithTimeout(url, options = {}, label = 'Request') {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    const reason = error.name === 'AbortError' ? 'request timed out' : error.message;
+    throw new Error(`${label} failed: ${reason}`);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function getSupabaseConfig() {
@@ -73,7 +91,7 @@ function summaryFor(city, daily, current) {
   const rainChance = daily?.precipitation_probability_max?.[0] ?? 0;
   const max = daily?.temperature_2m_max?.[0];
   const min = daily?.temperature_2m_min?.[0];
-  return `${city}: ${label}. Max ${max ?? '-'}°C, min ${min ?? '-'}°C, rain chance ${rainChance ?? 0}%, rainfall ${rain ?? 0} mm.`;
+  return `${city}: ${label}. Max ${max ?? '-'} C, min ${min ?? '-'} C, rain chance ${rainChance ?? 0}%, rainfall ${rain ?? 0} mm.`;
 }
 
 async function fetchCityWeather(city) {
@@ -85,8 +103,18 @@ async function fetchCityWeather(city) {
     timezone: 'Asia/Kolkata',
     forecast_days: '1',
   });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
-  if (!response.ok) throw new Error(`Weather fetch failed for ${city.city}`);
+
+  const response = await fetchWithTimeout(
+    `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
+    {},
+    `Open-Meteo weather API for ${city.city}`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Open-Meteo returned ${response.status} for ${city.city}. ${errorText}`);
+  }
+
   const data = await response.json();
   const reportDate = data.daily?.time?.[0] || todayInIndia();
   return {
@@ -115,7 +143,7 @@ async function saveReports(reports) {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables.');
   }
 
-  const response = await fetch(`${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`, {
+  const response = await fetchWithTimeout(`${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`, {
     method: 'POST',
     headers: {
       apikey: serviceKey,
@@ -124,7 +152,7 @@ async function saveReports(reports) {
       Prefer: 'resolution=merge-duplicates,return=representation',
     },
     body: JSON.stringify(reports),
-  });
+  }, 'Supabase weather save');
 
   const text = await response.text();
   if (!response.ok) {
@@ -133,12 +161,22 @@ async function saveReports(reports) {
   return text ? JSON.parse(text) : [];
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return json(204, {});
+
   try {
+    if (typeof fetch !== 'function') {
+      throw new Error('Netlify function runtime does not support fetch. Set Node.js runtime to 18 or newer.');
+    }
+
     const settled = await Promise.allSettled(CITIES.map(fetchCityWeather));
     const reports = settled.filter((item) => item.status === 'fulfilled').map((item) => item.value);
     const failed = settled.filter((item) => item.status === 'rejected').map((item) => item.reason?.message || 'Unknown error');
-    if (!reports.length) throw new Error('No weather reports generated.');
+
+    if (!reports.length) {
+      throw new Error(`No weather reports generated. First error: ${failed[0] || 'unknown'}`);
+    }
+
     const saved = await saveReports(reports);
     return json(200, {
       ok: true,
@@ -147,6 +185,10 @@ exports.handler = async () => {
       failed,
     });
   } catch (error) {
-    return json(500, { ok: false, error: error.message || 'Weather report failed.' });
+    return json(500, {
+      ok: false,
+      error: error.message || 'Weather report failed.',
+      help: 'Check Netlify env vars, Supabase daily_weather_reports table, and function deploy logs.',
+    });
   }
 };
