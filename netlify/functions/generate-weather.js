@@ -75,6 +75,14 @@ function normalizeSupabaseUrl(value = '') {
   return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
 }
 
+function safeHost(url = '') {
+  try {
+    return url ? new URL(url).host : 'missing';
+  } catch {
+    return `invalid url: ${url}`;
+  }
+}
+
 function getSupabaseConfig() {
   const url = normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
   const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
@@ -206,7 +214,7 @@ exports.handler = async (event) => {
       ok: false,
       error: error.message || 'Weather report failed.',
       debug: {
-        supabaseHost: url ? new URL(url).host : 'missing',
+        supabaseHost: safeHost(url),
         hasServiceKey: Boolean(serviceKey),
         serviceKeyLength: serviceKey ? serviceKey.length : 0,
       },
