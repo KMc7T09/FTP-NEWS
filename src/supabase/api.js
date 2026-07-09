@@ -1,5 +1,5 @@
 import { supabase, supabaseReady } from './config.js';
-import { articleToRow, mapArticle, mapCategory, mapComment, mapProfile } from './mappers.js';
+import { articleToRow, mapArticle, mapCategory, mapComment, mapProfile, mapWeatherReport } from './mappers.js';
 
 function requireSupabase() {
   if (!supabaseReady || !supabase) throw new Error('Supabase is not configured.');
@@ -441,4 +441,18 @@ export async function listPageVisits({ limit = 200 } = {}) {
   const { data, error } = await client.from('page_visits').select('*').order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return data || [];
+}
+
+export async function listWeatherReports({ reportDate = '', limit = 100 } = {}) {
+  const client = requireSupabase();
+  let query = client
+    .from('daily_weather_reports')
+    .select('*')
+    .order('report_date', { ascending: false })
+    .order('city', { ascending: true })
+    .limit(limit);
+  if (reportDate) query = query.eq('report_date', reportDate);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(mapWeatherReport);
 }

@@ -138,6 +138,28 @@ create table if not exists public.page_visits (
 
 alter table public.page_visits add column if not exists ip_address text default '';
 
+create table if not exists public.daily_weather_reports (
+  id uuid primary key default gen_random_uuid(),
+  report_date date not null,
+  city text not null,
+  state text default '',
+  country text default 'India',
+  latitude numeric,
+  longitude numeric,
+  temperature_max numeric,
+  temperature_min numeric,
+  temperature_current numeric,
+  precipitation_probability integer,
+  rainfall numeric,
+  wind_speed numeric,
+  weather_code integer,
+  summary text default '',
+  source text default 'Open-Meteo',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(report_date, city, country)
+);
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -254,6 +276,7 @@ alter table public.ads enable row level security;
 alter table public.settings enable row level security;
 alter table public.contact_messages enable row level security;
 alter table public.page_visits enable row level security;
+alter table public.daily_weather_reports enable row level security;
 
 drop policy if exists "profiles read own or admin" on public.profiles;
 create policy "profiles read own or admin" on public.profiles
@@ -344,6 +367,14 @@ for insert with check (true);
 drop policy if exists "visits superadmin read" on public.page_visits;
 create policy "visits superadmin read" on public.page_visits
 for select using (public.is_superadmin());
+
+drop policy if exists "weather public read" on public.daily_weather_reports;
+create policy "weather public read" on public.daily_weather_reports
+for select using (true);
+
+drop policy if exists "weather admin write" on public.daily_weather_reports;
+create policy "weather admin write" on public.daily_weather_reports
+for all using (public.is_admin()) with check (public.is_admin());
 
 insert into public.settings (id, data)
 values (

@@ -103,3 +103,26 @@ export function mapProfile(row = {}) {
     updatedAt: row.updated_at,
   };
 }
+
+export function mapWeatherReport(row = {}) {
+  return {
+    id: row.id,
+    reportDate: row.report_date,
+    city: row.city || '',
+    state: row.state || '',
+    country: row.country || 'India',
+    latitude: row.latitude,
+    longitude: row.longitude,
+    temperatureMax: row.temperature_max,
+    temperatureMin: row.temperature_min,
+    temperatureCurrent: row.temperature_current,
+    precipitationProbability: row.precipitation_probability,
+    rainfall: row.rainfall,
+    windSpeed: row.wind_speed,
+    weatherCode: row.weather_code,
+    summary: row.summary || '',
+    source: row.source || 'Open-Meteo',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}

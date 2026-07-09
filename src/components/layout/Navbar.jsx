@@ -13,6 +13,7 @@ const navItems = [
   ['Opinion', '/category/opinion'],
   ['Fact Check', '/category/fact-check'],
   ['Youth', '/category/youth'],
+  ['Weather', '/weather'],
 ];
 
 export default function Navbar() {
