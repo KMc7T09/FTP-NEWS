@@ -62,16 +62,25 @@ async function fetchWithTimeout(url, options = {}, label = 'Request') {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     const reason = error.name === 'AbortError' ? 'request timed out' : error.message;
-    throw new Error(`${label} failed: ${reason}`);
+    const cause = error.cause?.code || error.cause?.message || '';
+    throw new Error(`${label} failed: ${reason}${cause ? ` (${cause})` : ''}`);
   } finally {
     clearTimeout(timeout);
   }
 }
 
+function normalizeSupabaseUrl(value = '') {
+  const trimmed = String(value).trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+}
+
 function getSupabaseConfig() {
+  const url = normalizeSupabaseUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
   return {
-    url: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    url,
+    serviceKey,
   };
 }
 
@@ -142,8 +151,15 @@ async function saveReports(reports) {
   if (!url || !serviceKey) {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables.');
   }
+  if (!url.includes('.supabase.co')) {
+    throw new Error(`SUPABASE_URL looks wrong: ${url}. Use https://your-project-ref.supabase.co`);
+  }
+  if (serviceKey.length < 40) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY looks incomplete. Copy the full secret/service role key from Supabase API Keys.');
+  }
 
-  const response = await fetchWithTimeout(`${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`, {
+  const endpoint = `${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`;
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       apikey: serviceKey,
@@ -152,7 +168,7 @@ async function saveReports(reports) {
       Prefer: 'resolution=merge-duplicates,return=representation',
     },
     body: JSON.stringify(reports),
-  }, 'Supabase weather save');
+  }, `Supabase weather save to ${new URL(url).host}`);
 
   const text = await response.text();
   if (!response.ok) {
@@ -185,9 +201,15 @@ exports.handler = async (event) => {
       failed,
     });
   } catch (error) {
+    const { url, serviceKey } = getSupabaseConfig();
     return json(500, {
       ok: false,
       error: error.message || 'Weather report failed.',
+      debug: {
+        supabaseHost: url ? new URL(url).host : 'missing',
+        hasServiceKey: Boolean(serviceKey),
+        serviceKeyLength: serviceKey ? serviceKey.length : 0,
+      },
       help: 'Check Netlify env vars, Supabase daily_weather_reports table, and function deploy logs.',
     });
   }
