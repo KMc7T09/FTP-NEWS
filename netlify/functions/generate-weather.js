@@ -154,6 +154,27 @@ async function fetchCityWeather(city) {
   };
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchAllCityWeather() {
+  const reports = [];
+  const failed = [];
+
+  for (const city of CITIES) {
+    try {
+      reports.push(await fetchCityWeather(city));
+      await wait(350);
+    } catch (error) {
+      failed.push(error.message || `Weather failed for ${city.city}`);
+      await wait(800);
+    }
+  }
+
+  return { reports, failed };
+}
+
 async function saveReports(reports) {
   const { url, serviceKey } = getSupabaseConfig();
   if (!url || !serviceKey) {
@@ -193,9 +214,7 @@ exports.handler = async (event) => {
       throw new Error('Netlify function runtime does not support fetch. Set Node.js runtime to 18 or newer.');
     }
 
-    const settled = await Promise.allSettled(CITIES.map(fetchCityWeather));
-    const reports = settled.filter((item) => item.status === 'fulfilled').map((item) => item.value);
-    const failed = settled.filter((item) => item.status === 'rejected').map((item) => item.reason?.message || 'Unknown error');
+    const { reports, failed } = await fetchAllCityWeather();
 
     if (!reports.length) {
       throw new Error(`No weather reports generated. First error: ${failed[0] || 'unknown'}`);
