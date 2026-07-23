@@ -1,9 +1,34 @@
 const CITIES = [
+  { city: 'Angul', state: 'Odisha', latitude: 20.8444, longitude: 85.1511 },
+  { city: 'Balangir', state: 'Odisha', latitude: 20.7042, longitude: 83.4903 },
   { city: 'Bhubaneswar', state: 'Odisha', latitude: 20.2961, longitude: 85.8245 },
+  { city: 'Bargarh', state: 'Odisha', latitude: 21.3333, longitude: 83.6167 },
   { city: 'Cuttack', state: 'Odisha', latitude: 20.4625, longitude: 85.8830 },
+  { city: 'Bhadrak', state: 'Odisha', latitude: 21.0583, longitude: 86.4958 },
+  { city: 'Boudh', state: 'Odisha', latitude: 20.8377, longitude: 84.3262 },
+  { city: 'Deogarh', state: 'Odisha', latitude: 21.5383, longitude: 84.7333 },
+  { city: 'Dhenkanal', state: 'Odisha', latitude: 20.6574, longitude: 85.5969 },
+  { city: 'Paralakhemundi', state: 'Odisha', latitude: 18.7789, longitude: 84.0936 },
+  { city: 'Chhatrapur', state: 'Odisha', latitude: 19.3557, longitude: 84.9860 },
+  { city: 'Jagatsinghpur', state: 'Odisha', latitude: 20.2549, longitude: 86.1706 },
+  { city: 'Jajpur', state: 'Odisha', latitude: 20.8500, longitude: 86.3333 },
+  { city: 'Jharsuguda', state: 'Odisha', latitude: 21.8553, longitude: 84.0062 },
+  { city: 'Bhawanipatna', state: 'Odisha', latitude: 19.9074, longitude: 83.1649 },
+  { city: 'Phulbani', state: 'Odisha', latitude: 20.4686, longitude: 84.2304 },
+  { city: 'Kendrapara', state: 'Odisha', latitude: 20.5000, longitude: 86.4167 },
+  { city: 'Kendujhar', state: 'Odisha', latitude: 21.6289, longitude: 85.5817 },
+  { city: 'Khordha', state: 'Odisha', latitude: 20.1827, longitude: 85.6163 },
+  { city: 'Koraput', state: 'Odisha', latitude: 18.8135, longitude: 82.7123 },
+  { city: 'Malkangiri', state: 'Odisha', latitude: 18.3643, longitude: 81.8880 },
+  { city: 'Baripada', state: 'Odisha', latitude: 21.9322, longitude: 86.7517 },
+  { city: 'Nabarangpur', state: 'Odisha', latitude: 19.2311, longitude: 82.5483 },
+  { city: 'Nayagarh', state: 'Odisha', latitude: 20.1288, longitude: 85.0963 },
+  { city: 'Nuapada', state: 'Odisha', latitude: 20.8167, longitude: 82.5333 },
   { city: 'Puri', state: 'Odisha', latitude: 19.8135, longitude: 85.8312 },
   { city: 'Rourkela', state: 'Odisha', latitude: 22.2604, longitude: 84.8536 },
+  { city: 'Rayagada', state: 'Odisha', latitude: 19.1712, longitude: 83.4160 },
   { city: 'Sambalpur', state: 'Odisha', latitude: 21.4669, longitude: 83.9812 },
+  { city: 'Subarnapur', state: 'Odisha', latitude: 20.8333, longitude: 83.9167 },
   { city: 'Berhampur', state: 'Odisha', latitude: 19.3149, longitude: 84.7941 },
   { city: 'Balasore', state: 'Odisha', latitude: 21.4934, longitude: 86.9135 },
   { city: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.209 },
@@ -102,12 +127,13 @@ function todayInIndia() {
 }
 
 function summaryFor(city, daily, current) {
-  const code = current?.weather_code ?? daily?.weather_code?.[0] ?? 0;
+  const index = typeof daily?.index === 'number' ? daily.index : 0;
+  const code = current?.weather_code ?? daily?.weather_code?.[index] ?? 0;
   const label = WEATHER_TEXT.get(code) || 'Weather update available';
-  const rain = daily?.rain_sum?.[0] ?? 0;
-  const rainChance = daily?.precipitation_probability_max?.[0] ?? 0;
-  const max = daily?.temperature_2m_max?.[0];
-  const min = daily?.temperature_2m_min?.[0];
+  const rain = daily?.rain_sum?.[index] ?? 0;
+  const rainChance = daily?.precipitation_probability_max?.[index] ?? 0;
+  const max = daily?.temperature_2m_max?.[index];
+  const min = daily?.temperature_2m_min?.[index];
   return `${city}: ${label}. Max ${max ?? '-'} C, min ${min ?? '-'} C, rain chance ${rainChance ?? 0}%, rainfall ${rain ?? 0} mm.`;
 }
 
@@ -118,6 +144,7 @@ async function fetchCityWeather(city) {
     current: 'temperature_2m,weather_code,wind_speed_10m',
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code',
     timezone: 'Asia/Kolkata',
+    past_days: '5',
     forecast_days: '1',
   });
 
@@ -133,25 +160,26 @@ async function fetchCityWeather(city) {
   }
 
   const data = await response.json();
-  const reportDate = data.daily?.time?.[0] || todayInIndia();
-  return {
+  const days = data.daily?.time?.length ? data.daily.time : [todayInIndia()];
+  const today = days[days.length - 1];
+  return days.map((reportDate, index) => ({
     report_date: reportDate,
     city: city.city,
     state: city.state,
-    country: 'India',
+    country: city.country || 'India',
     latitude: city.latitude,
     longitude: city.longitude,
-    temperature_max: data.daily?.temperature_2m_max?.[0] ?? null,
-    temperature_min: data.daily?.temperature_2m_min?.[0] ?? null,
-    temperature_current: data.current?.temperature_2m ?? null,
-    precipitation_probability: data.daily?.precipitation_probability_max?.[0] ?? null,
-    rainfall: data.daily?.rain_sum?.[0] ?? null,
-    wind_speed: data.current?.wind_speed_10m ?? null,
-    weather_code: data.current?.weather_code ?? data.daily?.weather_code?.[0] ?? null,
-    summary: summaryFor(city.city, data.daily, data.current),
+    temperature_max: data.daily?.temperature_2m_max?.[index] ?? null,
+    temperature_min: data.daily?.temperature_2m_min?.[index] ?? null,
+    temperature_current: reportDate === today ? data.current?.temperature_2m ?? null : null,
+    precipitation_probability: data.daily?.precipitation_probability_max?.[index] ?? null,
+    rainfall: data.daily?.rain_sum?.[index] ?? null,
+    wind_speed: reportDate === today ? data.current?.wind_speed_10m ?? null : null,
+    weather_code: reportDate === today ? data.current?.weather_code ?? data.daily?.weather_code?.[index] ?? null : data.daily?.weather_code?.[index] ?? null,
+    summary: summaryFor(city.city, { ...data.daily, index }, reportDate === today ? data.current : null),
     source: 'Open-Meteo',
     updated_at: new Date().toISOString(),
-  };
+  }));
 }
 
 function wait(ms) {
@@ -161,10 +189,11 @@ function wait(ms) {
 async function fetchAllCityWeather() {
   const reports = [];
   const failed = [];
+  const locations = await loadWeatherLocations();
 
-  for (const city of CITIES) {
+  for (const city of locations) {
     try {
-      reports.push(await fetchCityWeather(city));
+      reports.push(...(await fetchCityWeather(city)));
       await wait(350);
     } catch (error) {
       failed.push(error.message || `Weather failed for ${city.city}`);
@@ -173,6 +202,36 @@ async function fetchAllCityWeather() {
   }
 
   return { reports, failed };
+}
+
+async function loadWeatherLocations() {
+  const { url, serviceKey } = getSupabaseConfig();
+  if (!url || !serviceKey) return CITIES;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${url}/rest/v1/weather_locations?is_active=eq.true&select=city,state,country,latitude,longitude&order=state.asc,city.asc`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+        },
+      },
+      'Supabase weather location load'
+    );
+    if (!response.ok) return CITIES;
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) return CITIES;
+    return rows.map((row) => ({
+      city: row.city,
+      state: row.state || '',
+      country: row.country || 'India',
+      latitude: Number(row.latitude),
+      longitude: Number(row.longitude),
+    })).filter((row) => row.city && Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
+  } catch {
+    return CITIES;
+  }
 }
 
 async function saveReports(reports) {

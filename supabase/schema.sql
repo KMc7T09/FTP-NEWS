@@ -4,8 +4,6 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text default '',
   email text default '',
-  phone_number text default '',
-  whatsapp_opt_in boolean default false,
   photo_url text default '',
   role text default 'user' check (role in ('user', 'editor', 'admin', 'superadmin')),
   status text default 'active' check (status in ('active', 'banned')),
@@ -13,9 +11,6 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-
-alter table public.profiles add column if not exists phone_number text default '';
-alter table public.profiles add column if not exists whatsapp_opt_in boolean default false;
 
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -31,9 +26,6 @@ create table if not exists public.articles (
   slug text unique not null,
   excerpt text default '',
   content text default '',
-  odia_title text default '',
-  odia_excerpt text default '',
-  odia_content text default '',
   featured_image_url text default '',
   category_id text default '',
   category_name text default '',
@@ -52,10 +44,6 @@ create table if not exists public.articles (
   updated_at timestamptz default now(),
   published_at timestamptz
 );
-
-alter table public.articles add column if not exists odia_title text default '';
-alter table public.articles add column if not exists odia_excerpt text default '';
-alter table public.articles add column if not exists odia_content text default '';
 
 create table if not exists public.comments (
   id uuid primary key default gen_random_uuid(),
@@ -137,28 +125,6 @@ create table if not exists public.page_visits (
 );
 
 alter table public.page_visits add column if not exists ip_address text default '';
-
-create table if not exists public.daily_weather_reports (
-  id uuid primary key default gen_random_uuid(),
-  report_date date not null,
-  city text not null,
-  state text default '',
-  country text default 'India',
-  latitude numeric,
-  longitude numeric,
-  temperature_max numeric,
-  temperature_min numeric,
-  temperature_current numeric,
-  precipitation_probability integer,
-  rainfall numeric,
-  wind_speed numeric,
-  weather_code integer,
-  summary text default '',
-  source text default 'Open-Meteo',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  unique(report_date, city, country)
-);
 
 create or replace function public.is_admin()
 returns boolean
@@ -245,13 +211,11 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, name, email, phone_number, whatsapp_opt_in, photo_url, role, status)
+  insert into public.profiles (id, name, email, photo_url, role, status)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', ''),
     coalesce(new.email, ''),
-    coalesce(new.phone, ''),
-    false,
     coalesce(new.raw_user_meta_data->>'avatar_url', ''),
     'user',
     'active'
@@ -276,7 +240,6 @@ alter table public.ads enable row level security;
 alter table public.settings enable row level security;
 alter table public.contact_messages enable row level security;
 alter table public.page_visits enable row level security;
-alter table public.daily_weather_reports enable row level security;
 
 drop policy if exists "profiles read own or admin" on public.profiles;
 create policy "profiles read own or admin" on public.profiles
@@ -356,6 +319,7 @@ drop policy if exists "contact admin update" on public.contact_messages;
 create policy "contact admin update" on public.contact_messages
 for update using (public.is_admin()) with check (public.is_admin());
 
+
 drop policy if exists "contact admin delete" on public.contact_messages;
 create policy "contact admin delete" on public.contact_messages
 for delete using (public.is_admin());
@@ -368,12 +332,59 @@ drop policy if exists "visits superadmin read" on public.page_visits;
 create policy "visits superadmin read" on public.page_visits
 for select using (public.is_superadmin());
 
+create table if not exists public.daily_weather_reports (
+  id uuid primary key default gen_random_uuid(),
+  report_date date not null,
+  city text not null,
+  state text default '',
+  country text default 'India',
+  latitude numeric,
+  longitude numeric,
+  temperature_max numeric,
+  temperature_min numeric,
+  temperature_current numeric,
+  precipitation_probability integer,
+  rainfall numeric,
+  wind_speed numeric,
+  weather_code integer,
+  summary text default '',
+  source text default 'Open-Meteo',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(report_date, city, country)
+);
+
+create table if not exists public.weather_locations (
+  id uuid primary key default gen_random_uuid(),
+  city text not null,
+  state text default '',
+  country text default 'India',
+  latitude numeric not null,
+  longitude numeric not null,
+  location_type text default 'district' check (location_type in ('district', 'city', 'state_capital', 'international')),
+  is_active boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(city, state, country)
+);
+
+alter table public.daily_weather_reports enable row level security;
+alter table public.weather_locations enable row level security;
+
 drop policy if exists "weather public read" on public.daily_weather_reports;
 create policy "weather public read" on public.daily_weather_reports
 for select using (true);
 
 drop policy if exists "weather admin write" on public.daily_weather_reports;
 create policy "weather admin write" on public.daily_weather_reports
+for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "weather locations public read" on public.weather_locations;
+create policy "weather locations public read" on public.weather_locations
+for select using (true);
+
+drop policy if exists "weather locations admin write" on public.weather_locations;
+create policy "weather locations admin write" on public.weather_locations
 for all using (public.is_admin()) with check (public.is_admin());
 
 insert into public.settings (id, data)
