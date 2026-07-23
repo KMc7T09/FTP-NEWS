@@ -108,6 +108,23 @@ img {
   @apply font-semibold text-brand-blue underline-offset-4 hover:text-brand-red hover:underline;
 }
 
+.topic-highlight {
+  border-radius: 0.35rem;
+  background: linear-gradient(90deg, rgba(220, 31, 42, 0.13), rgba(245, 158, 11, 0.14));
+  color: #7f1d1d;
+  font-weight: 800;
+  padding: 0.05rem 0.22rem;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+@media print {
+  .topic-highlight {
+    background: #fff1f2;
+    color: #991b1b;
+  }
+}
+
 .ticker-mask {
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);

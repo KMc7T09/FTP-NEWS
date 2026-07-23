@@ -137,29 +137,7 @@ function summaryFor(city, daily, current) {
   return `${city}: ${label}. Max ${max ?? '-'} C, min ${min ?? '-'} C, rain chance ${rainChance ?? 0}%, rainfall ${rain ?? 0} mm.`;
 }
 
-async function fetchCityWeather(city) {
-  const params = new URLSearchParams({
-    latitude: String(city.latitude),
-    longitude: String(city.longitude),
-    current: 'temperature_2m,weather_code,wind_speed_10m',
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code',
-    timezone: 'Asia/Kolkata',
-    past_days: '5',
-    forecast_days: '1',
-  });
-
-  const response = await fetchWithTimeout(
-    `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
-    {},
-    `Open-Meteo weather API for ${city.city}`
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error(`Open-Meteo returned ${response.status} for ${city.city}. ${errorText}`);
-  }
-
-  const data = await response.json();
+function reportsFromWeatherData(city, data) {
   const days = data.daily?.time?.length ? data.daily.time : [todayInIndia()];
   const today = days[days.length - 1];
   return days.map((reportDate, index) => ({
@@ -182,6 +160,33 @@ async function fetchCityWeather(city) {
   }));
 }
 
+async function fetchWeatherBatch(cities) {
+  const params = new URLSearchParams({
+    latitude: cities.map((city) => city.latitude).join(','),
+    longitude: cities.map((city) => city.longitude).join(','),
+    current: 'temperature_2m,weather_code,wind_speed_10m',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code',
+    timezone: 'Asia/Kolkata',
+    past_days: '5',
+    forecast_days: '1',
+  });
+
+  const response = await fetchWithTimeout(
+    `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
+    {},
+    `Open-Meteo weather API for ${cities.length} locations`
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Open-Meteo returned ${response.status} for ${cities[0]?.city || 'batch'}. ${errorText}`);
+  }
+
+  const payload = await response.json();
+  const responses = Array.isArray(payload) ? payload : [payload];
+  return cities.flatMap((city, index) => reportsFromWeatherData(city, responses[index] || responses[0] || {}));
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -190,14 +195,24 @@ async function fetchAllCityWeather() {
   const reports = [];
   const failed = [];
   const locations = await loadWeatherLocations();
+  const batchSize = 20;
 
-  for (const city of locations) {
+  for (let index = 0; index < locations.length; index += batchSize) {
+    const batch = locations.slice(index, index + batchSize);
     try {
-      reports.push(...(await fetchCityWeather(city)));
-      await wait(350);
+      reports.push(...(await fetchWeatherBatch(batch)));
+      await wait(450);
     } catch (error) {
-      failed.push(error.message || `Weather failed for ${city.city}`);
-      await wait(800);
+      failed.push(error.message || `Weather batch failed from ${batch[0]?.city || 'unknown'}`);
+      await wait(900);
+      for (const city of batch) {
+        try {
+          reports.push(...(await fetchWeatherBatch([city])));
+          await wait(250);
+        } catch (cityError) {
+          failed.push(cityError.message || `Weather failed for ${city.city}`);
+        }
+      }
     }
   }
 
@@ -247,22 +262,28 @@ async function saveReports(reports) {
   }
 
   const endpoint = `${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`;
-  const response = await fetchWithTimeout(endpoint, {
-    method: 'POST',
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=representation',
-    },
-    body: JSON.stringify(reports),
-  }, `Supabase weather save to ${new URL(url).host}`);
+  const saved = [];
+  const chunkSize = 500;
+  for (let index = 0; index < reports.length; index += chunkSize) {
+    const chunk = reports.slice(index, index + chunkSize);
+    const response = await fetchWithTimeout(endpoint, {
+      method: 'POST',
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=representation',
+      },
+      body: JSON.stringify(chunk),
+    }, `Supabase weather save to ${new URL(url).host}`);
 
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`Supabase weather save failed: ${response.status} ${text}`);
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`Supabase weather save failed: ${response.status} ${text}`);
+    }
+    if (text) saved.push(...JSON.parse(text));
   }
-  return text ? JSON.parse(text) : [];
+  return saved;
 }
 
 exports.handler = async (event) => {

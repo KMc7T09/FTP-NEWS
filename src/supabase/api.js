@@ -42,6 +42,9 @@ export async function upsertProfile(profile) {
 
 export async function listProfiles() {
   const client = requireSupabase();
+  const functionRows = await callAdminProfilesFunction().catch(() => null);
+  if (Array.isArray(functionRows)) return functionRows.map(mapProfile);
+
   const { data, error } = await client.from('profiles').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(mapProfile);
@@ -49,6 +52,12 @@ export async function listProfiles() {
 
 export async function updateProfileAdmin(id, updates) {
   const client = requireSupabase();
+  const functionRow = await callAdminProfilesFunction({
+    method: 'PATCH',
+    body: { id, updates },
+  }).catch(() => null);
+  if (functionRow) return mapProfile(functionRow);
+
   const row = {
     ...(updates.name !== undefined ? { name: updates.name } : {}),
     ...(updates.photoURL !== undefined ? { photo_url: updates.photoURL } : {}),
@@ -63,6 +72,27 @@ export async function updateProfileAdmin(id, updates) {
   if (error) throw error;
   if (!data) throw new Error('Role update blocked. Run the Supabase admin policy SQL and try again.');
   return mapProfile(data);
+}
+
+async function callAdminProfilesFunction({ method = 'GET', body = null } = {}) {
+  if (typeof fetch !== 'function') return null;
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return null;
+
+  const response = await fetch('/.netlify/functions/admin-profiles', {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (response.status === 404) return null;
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Admin profile request failed.');
+  return payload.profiles || payload.profile || null;
 }
 
 export async function listArticles({ publishedOnly = false, categorySlug = '', limit = 50 } = {}) {
@@ -171,10 +201,12 @@ export async function deleteCategory(id) {
   if (error) throw error;
 }
 
-export async function listComments({ approvedOnly = false } = {}) {
+export async function listComments({ approvedOnly = false, articleId = '', limit = 200 } = {}) {
   const client = requireSupabase();
   let query = client.from('comments').select('*').order('created_at', { ascending: false });
   if (approvedOnly) query = query.eq('status', 'approved');
+  if (articleId) query = query.eq('article_id', articleId);
+  if (limit) query = query.limit(limit);
   const { data, error } = await query;
   if (error) throw error;
   return (data || []).map(mapComment);

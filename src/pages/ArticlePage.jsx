@@ -1,5 +1,5 @@
 import { Bookmark, Copy, Download, Flag, Heart, MessageCircle, Share2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -55,6 +55,65 @@ const pdfLanguages = [
   ['ur', 'Urdu'],
 ];
 
+const topicStopWords = new Set([
+  'about', 'after', 'again', 'against', 'article', 'because', 'before', 'being',
+  'between', 'could', 'india', 'indian', 'news', 'politics', 'should', 'their',
+  'there', 'these', 'those', 'through', 'today', 'update', 'where', 'which',
+  'while', 'would',
+]);
+
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getTopicTerms(article = {}) {
+  const titleTerms = String(article.title || '')
+    .split(/[^A-Za-z0-9]+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 5 && !topicStopWords.has(word.toLowerCase()));
+  const metaTerms = [
+    article.categoryName,
+    article.categorySlug,
+    ...(Array.isArray(article.tags) ? article.tags : []),
+  ]
+    .flatMap((item) => String(item || '').split(/[^A-Za-z0-9]+/))
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 4 && !topicStopWords.has(word.toLowerCase()));
+
+  return [...new Set([...metaTerms, ...titleTerms])]
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 14);
+}
+
+function highlightArticleHtml(html = '', article = {}) {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return html;
+  const terms = getTopicTerms(article);
+  if (!html || !terms.length) return html;
+
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  const matcher = new RegExp(`\\b(${terms.map(escapeRegExp).join('|')})\\b`, 'gi');
+  const blockedTags = new Set(['A', 'SCRIPT', 'STYLE', 'CODE', 'PRE', 'MARK', 'BUTTON']);
+  const walker = document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (blockedTags.has(node.parentElement?.tagName)) return window.NodeFilter.FILTER_REJECT;
+      matcher.lastIndex = 0;
+      return matcher.test(node.nodeValue || '') ? window.NodeFilter.FILTER_ACCEPT : window.NodeFilter.FILTER_REJECT;
+    },
+  });
+
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    matcher.lastIndex = 0;
+    const wrapper = document.createElement('span');
+    wrapper.innerHTML = escapeHtml(node.nodeValue).replace(matcher, '<mark class="topic-highlight">$1</mark>');
+    node.parentNode?.replaceChild(wrapper, node);
+  });
+
+  return root.innerHTML;
+}
+
 export default function ArticlePage() {
   const { slug } = useParams();
   const { currentUser, profile, isBanned, loading } = useAuth();
@@ -73,6 +132,8 @@ export default function ArticlePage() {
   const [pdfLanguage, setPdfLanguage] = useState('en');
   const [pdfBusy, setPdfBusy] = useState(false);
   const canInteractWithArticle = Boolean(article?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(article.id));
+  const highlightedContent = useMemo(() => (article ? highlightArticleHtml(article.content, article) : ''), [article]);
+  const displayContent = translatedContent || highlightedContent;
 
   async function getRealArticleForAction() {
     if (canInteractWithArticle) return article;
@@ -105,11 +166,10 @@ export default function ArticlePage() {
 
   useEffect(() => {
     if (!article?.id) return;
-    listComments({ approvedOnly: true })
+    listComments({ approvedOnly: true, articleId: article.id, limit: 100 })
       .then((items) => {
-        const articleComments = items.filter((item) => item.articleId === article.id);
-        setComments(articleComments);
-        setCommentCount(articleComments.length);
+        setComments(items);
+        setCommentCount(items.length);
       })
       .catch(() => {
         setComments([]);
@@ -552,7 +612,7 @@ export default function ArticlePage() {
             </div>
             <img src={article.featuredImageURL} alt={article.title} className="mt-6 aspect-video max-h-[560px] w-full rounded-lg object-cover" loading="eager" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />
-            <div className="prose-news mx-auto max-w-[760px]" dangerouslySetInnerHTML={{ __html: translatedContent || article.content }} />
+            <div className="prose-news mx-auto max-w-[760px]" dangerouslySetInnerHTML={{ __html: displayContent }} />
             {(article.sourceName || article.sourceURL) && (
               <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Source / Credit</p>
