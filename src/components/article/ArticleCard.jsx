@@ -8,11 +8,16 @@ function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }
 
-export default function ArticleCard({ article, large = false, compact = false }) {
-  const [stats, setStats] = useState({ likes: 0, comments: 0 });
+export default function ArticleCard({ article, large = false, compact = false, stats: providedStats = null }) {
+  const [stats, setStats] = useState(providedStats || { likes: 0, comments: 0 });
   const articlePath = `/article/${article.slug}`;
 
   useEffect(() => {
+    if (providedStats) {
+      setStats(providedStats);
+      return undefined;
+    }
+
     let alive = true;
     async function loadStats() {
       const realId = isUuid(article.id) ? article.id : (await getArticleBySlugDb(article.slug))?.id;
@@ -31,7 +36,7 @@ export default function ArticleCard({ article, large = false, compact = false })
     return () => {
       alive = false;
     };
-  }, [article.id, article.slug]);
+  }, [article.id, article.slug, providedStats]);
 
   return (
     <article className={`news-card group overflow-hidden ${large ? 'shadow-[0_24px_70px_rgba(15,23,42,0.10)]' : ''}`}>

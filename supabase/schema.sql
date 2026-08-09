@@ -168,6 +168,14 @@ as $$
   );
 $$;
 
+create or replace function public.is_owner_email(email_value text)
+returns boolean
+language sql
+stable
+as $$
+  select lower(coalesce(email_value, '')) in ('kubulukhotei@gmail.com');
+$$;
+
 create or replace function public.protect_profile_privileges()
 returns trigger
 language plpgsql
@@ -175,18 +183,24 @@ security definer
 set search_path = public
 as $$
 begin
+  if public.is_owner_email(new.email) then
+    new.role := 'superadmin';
+    new.status := 'active';
+    new.banned_reason := '';
+  end if;
+
   if tg_op = 'INSERT' then
-    if new.id = auth.uid() and new.role <> 'user' then
+    if new.id = auth.uid() and not public.is_owner_email(new.email) and new.role <> 'user' then
       new.role := 'user';
     end if;
-    if new.id = auth.uid() and new.status <> 'active' then
+    if new.id = auth.uid() and not public.is_owner_email(new.email) and new.status <> 'active' then
       new.status := 'active';
     end if;
     return new;
   end if;
 
   if tg_op = 'UPDATE' then
-    if new.id = auth.uid() and not public.is_admin() then
+    if new.id = auth.uid() and not public.is_owner_email(new.email) and not public.is_admin() then
       new.role := old.role;
       new.status := old.status;
       new.banned_reason := old.banned_reason;
@@ -217,7 +231,7 @@ begin
     coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', ''),
     coalesce(new.email, ''),
     coalesce(new.raw_user_meta_data->>'avatar_url', ''),
-    'user',
+    case when public.is_owner_email(new.email) then 'superadmin' else 'user' end,
     'active'
   )
   on conflict (id) do nothing;
@@ -291,7 +305,15 @@ drop policy if exists "bookmarks own" on public.bookmarks;
 create policy "bookmarks own" on public.bookmarks for all using (auth.uid() = user_id or public.is_admin()) with check (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "likes own" on public.likes;
-create policy "likes own" on public.likes for all using (auth.uid() = user_id or public.is_admin()) with check (auth.uid() = user_id or public.is_admin());
+drop policy if exists "likes public read" on public.likes;
+drop policy if exists "likes own insert" on public.likes;
+drop policy if exists "likes own delete" on public.likes;
+create policy "likes public read" on public.likes
+for select using (true);
+create policy "likes own insert" on public.likes
+for insert with check (auth.uid() = user_id);
+create policy "likes own delete" on public.likes
+for delete using (auth.uid() = user_id or public.is_admin());
 
 drop policy if exists "ads public read active" on public.ads;
 create policy "ads public read active" on public.ads for select using (is_active = true or public.is_admin());
@@ -393,6 +415,13 @@ values (
   '{"websiteName":"THE FTP NEWS","footerText":"Fresh Take Politics - independent reporting, clear context, and verified updates from Odisha for readers across India.","contactEmail":"kubulukhotei@gmail.com","contactAddress":"Odisha, India","defaultSeoTitle":"THE FTP NEWS","defaultSeoDescription":"THE FTP NEWS means Fresh Take Politics: independent political news, explainers, analysis, and public updates from Odisha and India.","founderName":"KMC7T09","founderTitle":"Founder, Full Stack Developer and Student","founderBio":"KMC7T09 is the founder of THE FTP NEWS, a student and full stack developer from Odisha, India. FTP means Fresh Take Politics. The mission is to build an independent, clear, and reader-first news platform that explains politics and public issues in simple language for people across India.\n\nAuthor name: R.C. Khotei.","authorName":"R.C. Khotei","teamText":"Editorial Desk | News verification and publishing |  | \nPolitics Desk | Fresh Take Politics coverage |  | \nCommunity Desk | Reader tips, corrections, and feedback |  | ","socialLinks":{"facebook":"","x":"","instagram":"","youtube":"","whatsapp":"","telegram":""},"logoURL":""}'::jsonb
 )
 on conflict (id) do nothing;
+
+update public.profiles
+set role = 'superadmin',
+    status = 'active',
+    banned_reason = '',
+    updated_at = now()
+where lower(email) = 'kubulukhotei@gmail.com';
 
 -- First admin setup after your own signup:
 -- update public.profiles

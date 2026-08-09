@@ -126,6 +126,10 @@ function todayInIndia() {
   }).format(new Date());
 }
 
+function latestReportDate(reports = []) {
+  return reports.reduce((latest, report) => (report.report_date > latest ? report.report_date : latest), reports[0]?.report_date || todayInIndia());
+}
+
 function summaryFor(city, daily, current) {
   const index = typeof daily?.index === 'number' ? daily.index : 0;
   const code = current?.weather_code ?? daily?.weather_code?.[index] ?? 0;
@@ -303,7 +307,7 @@ exports.handler = async (event) => {
     const saved = await saveReports(reports);
     return json(200, {
       ok: true,
-      date: reports[0]?.report_date || todayInIndia(),
+      date: latestReportDate(reports),
       saved: saved.length || reports.length,
       failed,
     });

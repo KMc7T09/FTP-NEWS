@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import ArticleCard from '../article/ArticleCard.jsx';
 
-export default function SectionBlock({ kicker, title, description, articles = [], to }) {
+export default function SectionBlock({ kicker, title, description, articles = [], to, articleStats = {} }) {
   return (
     <section className="container-page py-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -19,7 +19,7 @@ export default function SectionBlock({ kicker, title, description, articles = []
       </div>
       {articles.length ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {articles.map((article) => <ArticleCard key={article.id} article={article} />)}
+          {articles.map((article) => <ArticleCard key={article.id} article={article} stats={articleStats[article.id]} />)}
         </div>
       ) : (
         <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm font-semibold text-gray-600">

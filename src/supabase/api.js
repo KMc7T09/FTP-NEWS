@@ -19,25 +19,39 @@ export async function getProfile(userId) {
 
 export async function upsertProfile(profile) {
   const client = requireSupabase();
-  const row = {
-    id: profile.id || profile.uid,
+  const id = profile.id || profile.uid;
+  const baseRow = {
+    id,
     name: profile.name || '',
     email: profile.email || '',
     phone_number: profile.phone || profile.phoneNumber || '',
     whatsapp_opt_in: Boolean(profile.whatsappOptIn),
     photo_url: profile.photoURL || '',
-    role: profile.role || 'user',
-    status: profile.status || 'active',
-    banned_reason: profile.bannedReason || '',
     updated_at: new Date().toISOString(),
   };
-  let result = await client.from('profiles').upsert(row).select('*').single();
+  const insertRow = {
+    ...baseRow,
+    role: 'user',
+    status: 'active',
+    banned_reason: '',
+  };
+
+  let result = await client.from('profiles').update(baseRow).eq('id', id).select('*').maybeSingle();
   if (result.error && String(result.error.message).includes('phone_number')) {
-    const { phone_number, whatsapp_opt_in, ...fallbackRow } = row;
-    result = await client.from('profiles').upsert(fallbackRow).select('*').single();
+    const { phone_number, whatsapp_opt_in, ...fallbackBaseRow } = baseRow;
+    result = await client.from('profiles').update(fallbackBaseRow).eq('id', id).select('*').maybeSingle();
   }
   if (result.error) throw result.error;
-  return mapProfile(result.data);
+
+  if (!result.error && result.data) return mapProfile(result.data);
+
+  let createResult = await client.from('profiles').insert(insertRow).select('*').single();
+  if (createResult.error && String(createResult.error.message).includes('phone_number')) {
+    const { phone_number, whatsapp_opt_in, ...fallbackInsertRow } = insertRow;
+    createResult = await client.from('profiles').insert(fallbackInsertRow).select('*').single();
+  }
+  if (createResult.error) throw createResult.error;
+  return mapProfile(createResult.data);
 }
 
 export async function listProfiles() {
@@ -259,6 +273,9 @@ export async function deleteComment(id) {
 
 export async function getSettings() {
   const client = requireSupabase();
+  const functionSettings = await callAdminSettingsFunction({ method: 'GET' }).catch(() => null);
+  if (functionSettings) return functionSettings;
+
   const { data, error } = await client.from('settings').select('*').eq('id', 'site').maybeSingle();
   if (error) throw error;
   return data?.data || null;
@@ -266,6 +283,12 @@ export async function getSettings() {
 
 export async function saveSettings(settings) {
   const client = requireSupabase();
+  const functionSettings = await callAdminSettingsFunction({
+    method: 'PUT',
+    body: { settings },
+  }).catch(() => null);
+  if (functionSettings) return functionSettings;
+
   const row = { id: 'site', data: settings, updated_at: new Date().toISOString() };
   let result = await client.from('settings').update(row).eq('id', 'site').select('*').maybeSingle();
   if (!result.error && !result.data) {
@@ -274,6 +297,25 @@ export async function saveSettings(settings) {
   if (result.error) throw result.error;
   if (!result.data) throw new Error('Settings save blocked. Check Supabase admin policy and your profile role.');
   return result.data.data;
+}
+
+async function callAdminSettingsFunction({ method = 'GET', body = null } = {}) {
+  if (typeof fetch !== 'function') return null;
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch('/.netlify/functions/admin-settings', {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (response.status === 404) return null;
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) throw new Error(payload.error || 'Settings request failed.');
+  return payload.settings || null;
 }
 
 export async function listAds() {
@@ -372,6 +414,28 @@ export async function countArticleComments(articleId) {
     .eq('status', 'approved');
   if (error) throw error;
   return count || 0;
+}
+
+export async function listArticleStats(articleIds = []) {
+  const client = requireSupabase();
+  const ids = [...new Set(articleIds.filter(Boolean))];
+  if (!ids.length) return {};
+
+  const [likesResult, commentsResult] = await Promise.all([
+    client.from('likes').select('article_id').in('article_id', ids),
+    client.from('comments').select('article_id').in('article_id', ids).eq('status', 'approved'),
+  ]);
+  if (likesResult.error) throw likesResult.error;
+  if (commentsResult.error) throw commentsResult.error;
+
+  const stats = Object.fromEntries(ids.map((id) => [id, { likes: 0, comments: 0 }]));
+  (likesResult.data || []).forEach((row) => {
+    if (stats[row.article_id]) stats[row.article_id].likes += 1;
+  });
+  (commentsResult.data || []).forEach((row) => {
+    if (stats[row.article_id]) stats[row.article_id].comments += 1;
+  });
+  return stats;
 }
 
 export async function toggleBookmark(articleId, userId) {

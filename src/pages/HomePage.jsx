@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, BarChart3, Clock, Search, ShieldCheck, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFeaturedArticles, usePublishedArticles } from '../hooks/useArticles.js';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import TrendingSidebar from '../components/article/TrendingSidebar.jsx';
@@ -12,6 +12,7 @@ import Seo from '../components/common/Seo.jsx';
 import SectionBlock from '../components/common/SectionBlock.jsx';
 import { ArticleSkeleton } from '../components/ui/Skeleton.jsx';
 import { staticCategories } from '../data/demoContent.js';
+import { listArticleStats } from '../supabase/api.js';
 
 export default function HomePage() {
   const [search, setSearch] = useState('');
@@ -19,6 +20,7 @@ export default function HomePage() {
   const categories = staticCategories;
   const { data: latest, loading } = usePublishedArticles(12);
   const { data: featured } = useFeaturedArticles();
+  const [articleStats, setArticleStats] = useState({});
   const hero = featured[0] || latest[0];
   const secondary = latest.filter((item) => item.id !== hero?.id).slice(0, 2);
   const byCategory = (slugs) => latest.filter((article) => slugs.includes(article.categorySlug || article.categoryId)).slice(0, 3);
@@ -27,6 +29,15 @@ export default function HomePage() {
   const opinion = byCategory(['opinion']);
   const factCheck = byCategory(['fact-check']);
   const editorsPick = featured.slice(1, 4).length ? featured.slice(1, 4) : latest.slice(3, 6);
+  const statIds = useMemo(() => [...new Set([...latest, ...featured].map((article) => article.id).filter(Boolean))], [latest, featured]);
+
+  useEffect(() => {
+    if (!statIds.length) {
+      setArticleStats({});
+      return;
+    }
+    listArticleStats(statIds).then(setArticleStats).catch(() => setArticleStats({}));
+  }, [statIds]);
 
   function submit(event) {
     event.preventDefault();
@@ -66,9 +77,9 @@ export default function HomePage() {
               <button className="bg-brand-red px-4 text-sm font-bold text-white sm:px-5">Search</button>
             </form>
             <div className="grid gap-5 xl:grid-cols-[1.7fr_0.8fr]">
-              {hero ? <ArticleCard article={hero} large priority /> : loading ? <ArticleSkeleton /> : null}
+              {hero ? <ArticleCard article={hero} large priority stats={articleStats[hero.id]} /> : loading ? <ArticleSkeleton /> : null}
               <div className="grid gap-5">
-                {secondary.map((article) => <ArticleCard key={article.id} article={article} compact />)}
+                {secondary.map((article) => <ArticleCard key={article.id} article={article} compact stats={articleStats[article.id]} />)}
               </div>
             </div>
           </div>
@@ -120,7 +131,7 @@ export default function HomePage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {loading
             ? Array.from({ length: 6 }).map((_, index) => <ArticleSkeleton key={index} />)
-            : latest.slice(0, 9).map((article) => <ArticleCard key={article.id} article={article} />)}
+            : latest.slice(0, 9).map((article) => <ArticleCard key={article.id} article={article} stats={articleStats[article.id]} />)}
         </div>
       </section>
 
@@ -130,6 +141,7 @@ export default function HomePage() {
         description="Sharp political updates, context, and public issue reporting."
         articles={politics.length ? politics : latest.slice(0, 3)}
         to="/category/politics"
+        articleStats={articleStats}
       />
 
       <section className="bg-white">
@@ -139,6 +151,7 @@ export default function HomePage() {
           description="Stories from Odisha and across India with clear local context."
           articles={indiaOdisha.length ? indiaOdisha : latest.slice(2, 5)}
           to="/category/odisha"
+          articleStats={articleStats}
         />
       </section>
 
@@ -148,6 +161,7 @@ export default function HomePage() {
         description="Youth-focused commentary, explainers, and public voice."
         articles={opinion.length ? opinion : latest.slice(4, 7)}
         to="/category/opinion"
+        articleStats={articleStats}
       />
 
       <section className="bg-white">
@@ -157,6 +171,7 @@ export default function HomePage() {
           description="Claims, context, and verification for public debate."
           articles={factCheck.length ? factCheck : latest.slice(5, 8)}
           to="/category/fact-check"
+          articleStats={articleStats}
         />
       </section>
 
@@ -166,6 +181,7 @@ export default function HomePage() {
         description="The FTP desk selection of important reads."
         articles={editorsPick}
         to="/search"
+        articleStats={articleStats}
       />
 
       <section className="bg-white py-10">
