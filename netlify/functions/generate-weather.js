@@ -195,24 +195,27 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchAllCityWeather() {
+async function fetchAllCityWeather({ offset = 0, limit = 80 } = {}) {
   const reports = [];
   const failed = [];
-  const locations = await loadWeatherLocations();
-  const batchSize = 20;
+  const allLocations = await loadWeatherLocations();
+  const safeOffset = Math.max(0, Number(offset) || 0);
+  const safeLimit = Math.min(Math.max(1, Number(limit) || 80), 120);
+  const locations = allLocations.slice(safeOffset, safeOffset + safeLimit);
+  const batchSize = 25;
 
   for (let index = 0; index < locations.length; index += batchSize) {
     const batch = locations.slice(index, index + batchSize);
     try {
       reports.push(...(await fetchWeatherBatch(batch)));
-      await wait(450);
+      await wait(120);
     } catch (error) {
       failed.push(error.message || `Weather batch failed from ${batch[0]?.city || 'unknown'}`);
-      await wait(900);
+      await wait(250);
       for (const city of batch) {
         try {
           reports.push(...(await fetchWeatherBatch([city])));
-          await wait(250);
+          await wait(120);
         } catch (cityError) {
           failed.push(cityError.message || `Weather failed for ${city.city}`);
         }
@@ -220,7 +223,15 @@ async function fetchAllCityWeather() {
     }
   }
 
-  return { reports, failed };
+  return {
+    reports,
+    failed,
+    offset: safeOffset,
+    limit: safeLimit,
+    totalLocations: allLocations.length,
+    nextOffset: safeOffset + locations.length,
+    hasMore: safeOffset + locations.length < allLocations.length,
+  };
 }
 
 async function loadWeatherLocations() {
@@ -298,10 +309,20 @@ exports.handler = async (event) => {
       throw new Error('Netlify function runtime does not support fetch. Set Node.js runtime to 18 or newer.');
     }
 
-    const { reports, failed } = await fetchAllCityWeather();
+    const offset = Number(event.queryStringParameters?.offset || 0);
+    const limit = Number(event.queryStringParameters?.limit || 80);
+    const { reports, failed, totalLocations, nextOffset, hasMore } = await fetchAllCityWeather({ offset, limit });
 
     if (!reports.length) {
-      throw new Error(`No weather reports generated. First error: ${failed[0] || 'unknown'}`);
+      return json(200, {
+        ok: true,
+        date: todayInIndia(),
+        saved: 0,
+        failed,
+        totalLocations,
+        nextOffset,
+        hasMore,
+      });
     }
 
     const saved = await saveReports(reports);
@@ -310,6 +331,9 @@ exports.handler = async (event) => {
       date: latestReportDate(reports),
       saved: saved.length || reports.length,
       failed,
+      totalLocations,
+      nextOffset,
+      hasMore,
     });
   } catch (error) {
     const { url, serviceKey } = getSupabaseConfig();

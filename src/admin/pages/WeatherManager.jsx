@@ -68,13 +68,40 @@ export default function WeatherManager() {
   async function generateToday() {
     setGenerating(true);
     try {
-      const response = await fetch('/.netlify/functions/generate-weather', { method: 'POST' }).catch(() => {
-        throw new Error('Weather function is not reachable. Redeploy Netlify after pushing latest code.');
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.ok === false) throw new Error(data.error || 'Weather generation failed.');
-      setLastRun(data);
-      toast.success(`Weather report saved for ${data.saved || 0} locations.`);
+      let offset = 0;
+      let totalSaved = 0;
+      let totalLocations = 0;
+      let failed = [];
+      let hasMore = true;
+      let batches = 0;
+
+      while (hasMore && batches < 15) {
+        const response = await fetch(`/.netlify/functions/generate-weather?offset=${offset}&limit=80`, { method: 'POST' }).catch(() => {
+          throw new Error('Weather function is not reachable. Redeploy Netlify after pushing latest code.');
+        });
+        const text = await response.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(`Weather function returned invalid response: ${text.slice(0, 160)}`);
+        }
+        if (!response.ok || data.ok === false) throw new Error(data.error || `Weather generation failed with status ${response.status}.`);
+
+        totalSaved += Number(data.saved || 0);
+        totalLocations = Number(data.totalLocations || totalLocations);
+        failed = failed.concat(data.failed || []);
+        hasMore = Boolean(data.hasMore);
+        offset = Number(data.nextOffset || offset + 80);
+        batches += 1;
+        setLastRun({ ...data, saved: totalSaved, failed, totalLocations, batches });
+      }
+
+      if (hasMore) {
+        toast.error(`Weather partly updated: ${totalSaved} rows saved. Click Update now again to finish remaining locations.`);
+      } else {
+        toast.success(`Weather report saved: ${totalSaved} rows for ${totalLocations || 'all'} locations.`);
+      }
       loadReports();
     } catch (error) {
       toast.error(error.message || 'Weather generation failed.');
@@ -163,6 +190,13 @@ export default function WeatherManager() {
               <div className="rounded-xl bg-amber-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-bold text-amber-700"><AlertTriangle size={16} /> Last run failed</p>
                 <p className="mt-1 text-sm text-gray-700">{lastRun.failed.length} locations failed. Run again later if Open-Meteo rate-limits.</p>
+                <p className="mt-2 line-clamp-3 text-xs leading-5 text-amber-800">{lastRun.failed.slice(0, 3).join(' | ')}</p>
+              </div>
+            ) : null}
+            {lastRun?.saved ? (
+              <div className="rounded-xl bg-green-50 p-4">
+                <p className="text-sm font-bold text-green-700">Last update completed</p>
+                <p className="mt-1 text-sm text-gray-700">{lastRun.saved} rows saved across {lastRun.batches || 1} batch run.</p>
               </div>
             ) : null}
           </div>
