@@ -1,3 +1,5 @@
+
+
 import { Link } from 'react-router-dom';
 import { Clock, Heart, MessageCircle, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -39,8 +41,8 @@ export default function ArticleCard({ article, large = false, compact = false, s
   }, [article.id, article.slug, providedStats]);
 
   return (
-    <article className={`news-card group overflow-hidden ${large ? 'shadow-[0_24px_70px_rgba(15,23,42,0.10)]' : ''}`}>
-      <Link to={articlePath} className={`relative block overflow-hidden bg-gray-100 ${large ? 'aspect-[16/10] sm:aspect-[16/9]' : ''} ${compact ? 'hidden sm:block' : ''}`}>
+    <article className={`news-card group overflow-hidden ${large ? 'lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] shadow-[0_24px_70px_rgba(15,23,42,0.10)]' : ''}`}>
+      <Link to={articlePath} className={`relative block overflow-hidden bg-gray-100 ${large ? 'aspect-[16/10] lg:aspect-auto lg:min-h-[360px]' : ''} ${compact ? 'hidden sm:block' : ''}`}>
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
@@ -51,13 +53,13 @@ export default function ArticleCard({ article, large = false, compact = false, s
           {article.categoryName || 'News'}
         </span>
       </Link>
-      <div className={`flex flex-col gap-3 ${large ? 'bg-white p-5 sm:p-7' : compact ? 'p-4' : 'p-5'}`}>
+      <div className={`flex flex-col gap-3 ${large ? 'bg-white p-5 sm:p-7 lg:min-h-[360px] lg:justify-center' : compact ? 'p-4' : 'p-5'}`}>
         <div className="flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-wide text-brand-red">
           <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName || 'News'}</Link>
           <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
         </div>
         <Link to={articlePath}>
-          <h2 className={`${large ? 'text-2xl sm:text-3xl' : compact ? 'text-lg' : 'text-xl'} font-extrabold leading-tight text-gray-950 hover:text-brand-blue ${large ? 'line-clamp-3' : ''}`}>
+          <h2 className={`${large ? 'text-2xl sm:text-3xl' : compact ? 'text-lg' : 'text-xl'} font-extrabold leading-tight text-gray-950 hover:text-brand-blue ${large ? 'line-clamp-5' : ''}`}>
             {article.title}
           </h2>
         </Link>

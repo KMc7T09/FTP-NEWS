@@ -1,26 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import Seo from '../components/common/Seo.jsx';
-import { listArticles } from '../supabase/api.js';
+import { listArticles, listArticleStats } from '../supabase/api.js';
 
 export default function SearchPage() {
   const [params, setParams] = useSearchParams();
   const [input, setInput] = useState(params.get('q') || '');
   const term = params.get('q') || '';
   const [articles, setArticles] = useState([]);
-  const results = articles.filter((article) => {
+  const [articleStats, setArticleStats] = useState({});
+  const results = useMemo(() => articles.filter((article) => {
     const value = term.toLowerCase();
     const haystack = [article.title, article.categoryName, article.excerpt, article.content, ...(article.tags || [])].join(' ').toLowerCase();
     return !value || haystack.includes(value);
-  });
+  }), [articles, term]);
+  const resultIds = useMemo(() => results.map((article) => article.id).filter(Boolean), [results]);
 
   useEffect(() => {
     listArticles({ publishedOnly: true, limit: 100 })
       .then(setArticles)
       .catch(() => setArticles([]));
   }, [term]);
+
+  useEffect(() => {
+    if (!resultIds.length) {
+      setArticleStats({});
+      return;
+    }
+    listArticleStats(resultIds).then(setArticleStats).catch(() => setArticleStats({}));
+  }, [resultIds]);
 
   function submit(event) {
     event.preventDefault();
@@ -49,7 +59,7 @@ export default function SearchPage() {
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {results.map((article) => (
-            <ArticleCard key={article.id} article={article} />
+            <ArticleCard key={article.id} article={article} stats={articleStats[article.id]} />
           ))}
         </div>
         {!results.length ? <p className="rounded-lg bg-white p-6 text-gray-600">No matching published articles found.</p> : null}

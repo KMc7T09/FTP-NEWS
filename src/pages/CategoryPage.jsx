@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import Seo from '../components/common/Seo.jsx';
-import { listArticles } from '../supabase/api.js';
+import { listArticles, listArticleStats } from '../supabase/api.js';
 
 const descriptions = {
   politics: 'Political news, public issues, government decisions, and analysis from FTP.',
@@ -18,15 +18,25 @@ export default function CategoryPage() {
   const { slug } = useParams();
   const [count, setCount] = useState(9);
   const [data, setData] = useState([]);
+  const [articleStats, setArticleStats] = useState({});
   const title = slug.replaceAll('-', ' ');
   const featured = data[0];
   const rest = data.slice(1);
+  const articleIds = useMemo(() => data.map((article) => article.id).filter(Boolean), [data]);
 
   useEffect(() => {
     listArticles({ publishedOnly: true, categorySlug: slug, limit: count })
       .then(setData)
       .catch(() => setData([]));
   }, [slug, count]);
+
+  useEffect(() => {
+    if (!articleIds.length) {
+      setArticleStats({});
+      return;
+    }
+    listArticleStats(articleIds).then(setArticleStats).catch(() => setArticleStats({}));
+  }, [articleIds]);
 
   return (
     <>
@@ -39,14 +49,14 @@ export default function CategoryPage() {
         </div>
       </section>
       <section className="container-page py-10">
-        {featured && <div className="mb-8"><ArticleCard article={featured} large /></div>}
+        {featured && <div className="mb-8"><ArticleCard article={featured} large stats={articleStats[featured.id]} /></div>}
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-extrabold">All Stories</h2>
           <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-gray-600">{data.length} stories</span>
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {rest.map((article) => (
-            <ArticleCard key={article.id} article={article} />
+            <ArticleCard key={article.id} article={article} stats={articleStats[article.id]} />
           ))}
         </div>
         {!data.length ? <p className="rounded-lg bg-white p-6 text-gray-600">No published articles in this category yet.</p> : null}
