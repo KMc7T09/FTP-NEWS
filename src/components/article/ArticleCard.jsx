@@ -47,7 +47,7 @@ export default function ArticleCard({ article, large = false, compact = false, s
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
-          className={`h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03] ${large ? 'absolute inset-0 min-h-full' : 'min-h-52'} ${compact ? 'sm:min-h-36' : ''}`}
+          className={`h-full w-full ${large ? 'absolute inset-0 min-h-full bg-gray-950 object-contain' : 'min-h-52 object-cover'} object-center transition duration-500 group-hover:scale-[1.03] ${compact ? 'sm:min-h-36' : ''}`}
           loading={large ? 'eager' : 'lazy'}
         />
         <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-red shadow-sm">
