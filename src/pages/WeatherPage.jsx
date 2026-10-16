@@ -50,7 +50,7 @@ function formatReportDate(value, compact = false) {
 }
 
 function cityLabel(place = {}) {
-  return [place.name || place.city, place.admin1 || place.state, place.country].filter(Boolean).join(', ');
+  return [place.name || place.city, place.admin2, place.admin1 || place.state, place.country].filter(Boolean).join(', ');
 }
 
 function weatherSummary(report) {
@@ -105,23 +105,57 @@ async function geocodeIndianPin(pinCode) {
     // Fall through to Open-Meteo's postal-code search if the postal lookup is unavailable.
   }
 
-  const districtStatePairs = [...new Map(offices
-    .filter((office) => office.District && office.State)
-    .map((office) => [`${office.District}|${office.State}`, office]))
+  const areaOffices = [...new Map(offices
+    .filter((office) => office.Name && office.District && office.State)
+    .map((office) => [`${office.Name}|${office.District}|${office.State}`, office]))
     .values()].slice(0, 3);
-  const places = [];
-  for (const office of districtStatePairs) {
+  const areaResults = await Promise.all(areaOffices.map(async (office) => {
     try {
-      const matches = await geocodePlaces(`${office.District}, ${office.State}`, 'IN');
-      places.push(...matches.map((place) => ({ ...place, pinCode })));
+      const matches = await geocodePlaces(`${office.Name}, ${office.District}, ${office.State}`, 'IN');
+      const areaName = normalizePlaceName(office.Name);
+      const districtName = normalizePlaceName(office.District);
+      const match = matches.find((place) => {
+        const resultName = normalizePlaceName(place.name);
+        return resultName === areaName || resultName.startsWith(`${areaName} `)
+          || (resultName !== districtName && resultName !== normalizePlaceName(office.State));
+      });
+      if (!match) return null;
+      return {
+        ...match,
+        name: office.Name,
+        admin1: office.State,
+        admin2: office.District,
+        country: 'India',
+        pinCode,
+      };
     } catch {
-      // Try other post offices for this PIN before using the direct postal search.
+      return null;
     }
-  }
+  }));
+  const places = areaResults.filter(Boolean);
   if (places.length) return places;
 
-  const directMatches = await geocodePlaces(pinCode, 'IN');
-  return directMatches.map((place) => ({ ...place, pinCode }));
+  try {
+    const directMatches = await geocodePlaces(pinCode, 'IN');
+    if (directMatches.length) return directMatches.map((place) => ({ ...place, pinCode }));
+  } catch {
+    // Continue to district-level resolution below.
+  }
+
+  const districtNames = [...new Map(areaOffices.map((office) => [`${office.District}|${office.State}`, office]))
+    .values()];
+  const districtResults = await Promise.all(districtNames.map(async (office) => {
+    try {
+      return (await geocodePlaces(`${office.District}, ${office.State}`, 'IN')).map((place) => ({
+        ...place,
+        admin2: office.District,
+        pinCode,
+      }));
+    } catch {
+      return [];
+    }
+  }));
+  return districtResults.flat();
 }
 
 function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = '' }) {
