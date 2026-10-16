@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Activity, CloudSun, Download, Droplets, Globe2, LocateFixed, MapPin, RefreshCw, Search, ThermometerSun, Wind } from 'lucide-react';
 import { listWeatherReports } from '../supabase/api.js';
+import useSettings from '../hooks/useSettings.js';
 
 const WEATHER_TEXT = new Map([
   [0, 'Clear sky'],
@@ -83,7 +84,7 @@ function reportToPlace(report) {
   };
 }
 
-function openPdfReport({ title, subtitle, reports, locationNote = '' }) {
+function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = '' }) {
   const rows = reports.map((report) => `
     <tr>
       <td>${escapePdfText(formatReportDate(report.reportDate, true))}</td>
@@ -100,6 +101,8 @@ function openPdfReport({ title, subtitle, reports, locationNote = '' }) {
 
   const summary = reports[0] ? escapePdfText(weatherSummary(reports[0])) : '';
   const generatedAt = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
+  const fallbackLogo = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="18" fill="#101820"/><path d="M0 132h160v28H0z" fill="#d71920"/><text x="80" y="105" text-anchor="middle" font-family="Georgia,serif" font-size="74" font-weight="700" fill="#fff">FTP</text></svg>')}`;
+  const logoSource = escapePdfText(logoURL || fallbackLogo);
   const win = window.open('', '_blank');
   if (!win) {
     toast.error('Popup blocked. Allow popups to download PDF.');
@@ -118,7 +121,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '' }) {
           body { font-family: Arial, sans-serif; color: #15202b; margin: 0; background: #fff; }
           .masthead { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d9dee5; padding:0 0 14px; }
           .brand { display:flex; align-items:center; gap:12px; }
-          .mark { display:grid; place-items:center; width:48px; height:48px; background:#101820; color:#fff; border-bottom:4px solid #d71920; font-family:Georgia,serif; font-size:20px; font-weight:900; }
+          .mark { display:block; width:52px; height:52px; object-fit:contain; }
           .brand-name { font-family:Georgia,serif; font-size:20px; font-weight:800; }
           .brand-line { margin-top:3px; color:#d71920; font-size:9px; font-weight:800; letter-spacing:2px; }
           .edition { color:#64748b; font-size:10px; text-align:right; line-height:1.7; }
@@ -143,7 +146,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '' }) {
       </head>
       <body>
         <header class="masthead">
-          <div class="brand"><div class="mark">FTP</div><div><div class="brand-name">THE FTP NEWS</div><div class="brand-line">FRESH TAKE POLITICS</div></div></div>
+          <div class="brand"><img class="mark" src="${logoSource}" alt="FTP logo" onerror="this.onerror=null;this.src='${fallbackLogo}'" /><div><div class="brand-name">THE FTP NEWS</div><div class="brand-line">FRESH TAKE POLITICS</div></div></div>
           <div class="edition">WEATHER DESK<br/>Generated ${escapePdfText(generatedAt)}</div>
         </header>
         <section class="heading">
@@ -216,6 +219,7 @@ function WeatherCard({ report, featured = false, history = [] }) {
               subtitle: `${report.state || report.country || 'Live weather'} | ${formatReportDate(report.reportDate)}`,
               reports: trend,
               locationNote: report.pinCode ? `Detected PIN code: ${report.pinCode}` : '',
+              logoURL: settings.logoURL,
             })}
           >
             <span className="flex items-center gap-2"><Download size={17} /> PDF report</span>
@@ -304,6 +308,7 @@ async function fetchForecastForPlace(place) {
 }
 
 export default function WeatherPage() {
+  const settings = useSettings();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -439,6 +444,7 @@ export default function WeatherPage() {
       title: 'India Daily Weather Report',
       subtitle: `${formatReportDate(latestDate)} | ${latestReports.length} saved city/district reports`,
       reports: latestReports,
+      logoURL: settings.logoURL,
     });
   }
 

@@ -471,31 +471,37 @@ export default function ArticlePage() {
           ],
         }}
       />
-      <article className="bg-white">
-        <div className="container-page grid gap-10 py-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <article className="article-page bg-[#f2f4f6]">
+        <div className="container-page grid gap-8 py-5 sm:py-8 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div>
-            <nav className="mb-5 flex flex-wrap gap-2 text-sm font-semibold text-gray-500" aria-label="Breadcrumb">
+            <nav className="article-breadcrumb mb-5 flex flex-wrap gap-2 text-xs font-bold text-gray-500" aria-label="Breadcrumb">
               <Link to="/" className="hover:text-brand-red">Home</Link>
               <span>/</span>
               <Link to={`/category/${article.categorySlug || article.categoryId}`} className="hover:text-brand-red">{article.categoryName || 'News'}</Link>
               <span>/</span>
               <span className="text-gray-900">Article</span>
             </nav>
-            <div className="mb-4 flex flex-wrap gap-3 text-sm font-bold uppercase tracking-wide text-brand-red">
-              <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName}</Link>
-              <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
-              <span className="text-gray-400">Updated {formatDate(article.updatedAt || article.publishedAt)}</span>
-              <span className="text-gray-400">{readTime(article.content)}</span>
-              <span className="text-gray-400">{article.categorySlug === 'opinion' ? 'Opinion' : article.categorySlug === 'fact-check' ? 'Fact Check' : 'News'}</span>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 sm:p-7">
-              <h1 className="max-w-4xl text-3xl font-extrabold leading-tight text-gray-950 md:text-5xl">{translatedTitle || article.title}</h1>
-              <p className="mt-4 text-lg leading-8 text-gray-600">{translatedExcerpt || article.excerpt}</p>
-            </div>
-            <section className="mt-5 rounded-xl border border-gray-200 bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+            <header className="article-headline">
+              <div className="article-headline-meta">
+                <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName || 'News'}</Link>
+                <span>{article.categorySlug === 'opinion' ? 'Opinion' : article.categorySlug === 'fact-check' ? 'Fact Check' : 'News'}</span>
+                <span>{formatDate(article.publishedAt)}</span>
+                <span>{readTime(article.content)} read</span>
+                {article.updatedAt && article.updatedAt !== article.publishedAt ? <span>Updated {formatDate(article.updatedAt)}</span> : null}
+              </div>
+              <h1 className="article-title">{translatedTitle || article.title}</h1>
+              <p className="article-deck">{translatedExcerpt || article.excerpt}</p>
+            </header>
+            {article.featuredImageURL ? (
+              <figure className="article-cover">
+                <img src={article.featuredImageURL} alt={article.title} loading="eager" />
+                <figcaption><span>THE FTP NEWS</span><span>{article.categoryName || 'News'} · {readTime(article.content)} read</span></figcaption>
+              </figure>
+            ) : null}
+            <section className="article-engagement mt-5 border-y border-gray-200 bg-white p-4 sm:p-5">
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                 <div className="min-w-0">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Published by</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Reporting by</p>
                   <p className="mt-1 truncate text-base font-extrabold text-gray-950">{cleanAuthorName(article.authorName, 'News Desk')}</p>
                   <div className="mt-3 grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 text-center sm:max-w-md">
                     <div className="border-r border-gray-200 px-3 py-2">
@@ -556,7 +562,7 @@ export default function ArticlePage() {
                 </div>
               </div>
             </section>
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+            <div className="mt-4 border-y border-gray-200 bg-white p-3 sm:p-4">
               <div className="flex flex-wrap items-center gap-3">
               <InlineTranslate
                 html={article.content}
@@ -610,9 +616,8 @@ export default function ArticlePage() {
               />
               </div>
             </div>
-            <img src={article.featuredImageURL} alt={article.title} className="mt-6 aspect-video max-h-[560px] w-full rounded-lg object-cover" loading="eager" />
             <AdSlot label="Article Middle Ad Slot" position="article-middle" className="my-8" />
-            <div className="prose-news mx-auto max-w-[760px]" dangerouslySetInnerHTML={{ __html: displayContent }} />
+            <div className="article-copy prose-news mx-auto my-7 max-w-[780px] border-y border-gray-200 bg-white px-5 py-7 sm:px-10 sm:py-10" dangerouslySetInnerHTML={{ __html: displayContent }} />
             {(article.sourceName || article.sourceURL) && (
               <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Source / Credit</p>
@@ -678,7 +683,7 @@ export default function ArticlePage() {
               </div>
             </section>
           </div>
-          <aside className="space-y-6">
+          <aside className="article-rail space-y-6">
             <AdSlot label="Sidebar Ad Slot" position="sidebar" />
             <h2 className="text-xl font-extrabold">Related Articles</h2>
             {related.map((item) => (
