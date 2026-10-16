@@ -8,19 +8,31 @@ const WEATHER_TEXT = new Map([
   [0, 'Clear sky'],
   [1, 'Mostly clear'],
   [2, 'Partly cloudy'],
-  [3, 'Cloudy'],
-  [45, 'Foggy'],
-  [48, 'Fog with frost'],
+  [3, 'Overcast'],
+  [45, 'Fog'],
+  [48, 'Rime fog'],
   [51, 'Light drizzle'],
-  [53, 'Drizzle'],
-  [55, 'Heavy drizzle'],
-  [61, 'Light rain'],
-  [63, 'Rain'],
+  [53, 'Moderate drizzle'],
+  [55, 'Dense drizzle'],
+  [56, 'Light freezing drizzle'],
+  [57, 'Dense freezing drizzle'],
+  [61, 'Slight rain'],
+  [63, 'Moderate rain'],
   [65, 'Heavy rain'],
-  [80, 'Light showers'],
-  [81, 'Showers'],
-  [82, 'Heavy showers'],
+  [66, 'Light freezing rain'],
+  [67, 'Heavy freezing rain'],
+  [71, 'Slight snowfall'],
+  [73, 'Moderate snowfall'],
+  [75, 'Heavy snowfall'],
+  [77, 'Snow grains'],
+  [80, 'Slight rain showers'],
+  [81, 'Moderate rain showers'],
+  [82, 'Heavy rain showers'],
+  [85, 'Slight snow showers'],
+  [86, 'Heavy snow showers'],
   [95, 'Thunderstorm'],
+  [96, 'Thunderstorm with hail'],
+  [99, 'Thunderstorm with heavy hail'],
 ]);
 
 const QUICK_DISTRICTS = [
@@ -196,7 +208,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
       <td>${escapePdfText(formatReportDate(report.reportDate, true))}</td>
       <td><strong>${escapePdfText(report.city)}</strong></td>
       <td>${escapePdfText([report.district, report.state].filter(Boolean).join(', ') || '-')}</td>
-      <td>${escapePdfText(report.temperatureCurrent ?? '-')}°</td>
+      <td>${escapePdfText(WEATHER_TEXT.get(Number(report.weatherCode)) || 'Not available')}</td>
       <td>${escapePdfText(report.temperatureMax ?? '-')}°</td>
       <td>${escapePdfText(report.temperatureMin ?? '-')}°</td>
       <td>${escapePdfText(report.precipitationProbability ?? 0)}%</td>
@@ -269,7 +281,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>City/District</th><th>State</th><th>Current C</th><th>Max C</th><th>Min C</th><th>Rain</th><th>Rainfall</th><th>Wind</th>
+              <th>Date</th><th>Area</th><th>District / State</th><th>Conditions</th><th>High C</th><th>Low C</th><th>Rain chance</th><th>Rainfall</th><th>Wind max</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -381,7 +393,7 @@ async function fetchForecastForPlace(place) {
     latitude: String(latitude),
     longitude: String(longitude),
     current: 'temperature_2m,weather_code,wind_speed_10m',
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code,wind_speed_10m_max',
     timezone: 'auto',
     past_days: '5',
     forecast_days: '1',
@@ -405,7 +417,7 @@ async function fetchForecastForPlace(place) {
     temperatureCurrent: index === days.length - 1 ? data.current?.temperature_2m ?? null : null,
     precipitationProbability: data.daily?.precipitation_probability_max?.[index] ?? null,
     rainfall: data.daily?.rain_sum?.[index] ?? null,
-    windSpeed: index === days.length - 1 ? data.current?.wind_speed_10m ?? null : null,
+    windSpeed: data.daily?.wind_speed_10m_max?.[index] ?? (index === days.length - 1 ? data.current?.wind_speed_10m ?? null : null),
     weatherCode: index === days.length - 1 ? data.current?.weather_code ?? data.daily?.weather_code?.[index] ?? null : data.daily?.weather_code?.[index] ?? null,
     source: 'Open-Meteo live search',
   })).reverse();
