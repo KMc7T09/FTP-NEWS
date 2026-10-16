@@ -68,22 +68,10 @@ function escapeRegExp(value = '') {
 }
 
 function getTopicTerms(article = {}) {
-  const titleTerms = String(article.title || '')
+  return [...new Set(String(article.title || '')
     .split(/[^A-Za-z0-9]+/)
     .map((word) => word.trim())
-    .filter((word) => word.length >= 5 && !topicStopWords.has(word.toLowerCase()));
-  const metaTerms = [
-    article.categoryName,
-    article.categorySlug,
-    ...(Array.isArray(article.tags) ? article.tags : []),
-  ]
-    .flatMap((item) => String(item || '').split(/[^A-Za-z0-9]+/))
-    .map((word) => word.trim())
-    .filter((word) => word.length >= 4 && !topicStopWords.has(word.toLowerCase()));
-
-  return [...new Set([...metaTerms, ...titleTerms])]
-    .sort((a, b) => b.length - a.length)
-    .slice(0, 14);
+    .filter((word) => word.length >= 5 && !topicStopWords.has(word.toLowerCase())))].slice(0, 8);
 }
 
 function highlightArticleHtml(html = '', article = {}) {
@@ -93,23 +81,20 @@ function highlightArticleHtml(html = '', article = {}) {
 
   const root = document.createElement('div');
   root.innerHTML = html;
-  const matcher = new RegExp(`\\b(${terms.map(escapeRegExp).join('|')})\\b`, 'gi');
-  const blockedTags = new Set(['A', 'SCRIPT', 'STYLE', 'CODE', 'PRE', 'MARK', 'BUTTON']);
-  const walker = document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (blockedTags.has(node.parentElement?.tagName)) return window.NodeFilter.FILTER_REJECT;
-      matcher.lastIndex = 0;
-      return matcher.test(node.nodeValue || '') ? window.NodeFilter.FILTER_ACCEPT : window.NodeFilter.FILTER_REJECT;
-    },
-  });
+  const paragraphs = [...root.querySelectorAll('p')]
+    .filter((paragraph) => (paragraph.textContent || '').trim().length > 80);
+  if (!paragraphs.length) return root.innerHTML;
 
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach((node) => {
-    matcher.lastIndex = 0;
-    const wrapper = document.createElement('span');
-    wrapper.innerHTML = escapeHtml(node.nodeValue).replace(matcher, '<mark class="topic-highlight">$1</mark>');
-    node.parentNode?.replaceChild(wrapper, node);
+  const ranked = paragraphs.map((paragraph, index) => {
+    const text = paragraph.textContent || '';
+    const matches = terms.filter((term) => new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i').test(text));
+    return { paragraph, index, score: matches.length };
+  }).filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const maxHighlights = Math.min(3, Math.max(1, Math.floor(paragraphs.length / 4)));
+  ranked.slice(0, maxHighlights).forEach(({ paragraph }) => {
+    paragraph.classList.add('major-point-highlight');
   });
 
   return root.innerHTML;
