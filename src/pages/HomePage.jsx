@@ -115,16 +115,19 @@ export default function HomePage() {
               </div>
             </div>
             <TrendingSidebar articles={trending} />
-            <Link to="/weather" className="group flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4 transition hover:border-brand-red">
-              <span>
-                <span className="block text-xs font-extrabold uppercase tracking-wide text-gray-500">Weather desk</span>
-                <span className="mt-1 block font-extrabold text-gray-950 group-hover:text-brand-red">Weather Intelligence</span>
-              </span>
-              <CloudSun className="shrink-0 text-brand-red" size={22} />
-            </Link>
-            <NewsletterBox />
-            <FollowBox />
           </div>
+        </div>
+        <div className="container-page grid gap-4 border-t border-gray-200 pb-8 pt-6 md:grid-cols-2 xl:grid-cols-3">
+          <Link to="/weather" className="group flex min-h-28 items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-5 transition hover:border-brand-red hover:shadow-sm">
+            <span>
+              <span className="block text-xs font-extrabold uppercase tracking-wide text-gray-500">Weather desk</span>
+              <span className="mt-1 block text-lg font-extrabold text-gray-950 group-hover:text-brand-red">Weather Intelligence</span>
+              <span className="mt-1 block text-sm text-gray-600">District reports and local conditions</span>
+            </span>
+            <CloudSun className="shrink-0 text-brand-red" size={26} />
+          </Link>
+          <NewsletterBox />
+          <FollowBox />
         </div>
       </section>
 
