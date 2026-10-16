@@ -355,22 +355,21 @@ export default function ArticlePage() {
             <meta charset="utf-8" />
             <style>
               * { box-sizing: border-box; }
-              body { position:relative; isolation:isolate; font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 72px 36px 64px; line-height: 1.65; }
+              body { position:relative; isolation:isolate; font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 34px 36px; line-height: 1.65; }
               .pdf-watermark { position:fixed; inset:0; z-index:0; display:grid; place-items:center; pointer-events:none; }
               .pdf-watermark img { display:block; width:min(58vw, 470px); height:min(62vh, 470px); object-fit:contain; opacity:.055; }
               body > :not(.pdf-watermark) { position:relative; z-index:1; }
               .pdf-header, .pdf-footer {
-                position: fixed;
-                left: 0;
-                right: 0;
+                position: relative;
                 background: #fff;
                 font-family: Arial, sans-serif;
                 color: #111827;
+                break-inside: avoid;
+                page-break-inside: avoid;
               }
               .pdf-header {
-                top: 0;
                 border-bottom: 1px solid #e5e7eb;
-                padding: 12px 36px 10px;
+                padding: 8px 0 14px;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
@@ -378,24 +377,25 @@ export default function ArticlePage() {
               }
               img.brand-logo { display:block; width:164px; height:100px; max-height:none; object-fit:contain; object-position:center; margin:0; border-radius:0; }
               .pdf-footer {
-                bottom: 0;
                 border-top: 1px solid #e5e7eb;
-                padding: 10px 36px;
+                padding: 12px 0 0;
+                margin-top: 28px;
                 font-size: 11px;
                 color: #6b7280;
               }
-              body > .pdf-header, body > .pdf-footer { position:fixed; z-index:2; }
               .logo { font-size: 24px; font-weight: 900; letter-spacing: -0.04em; }
               .tagline { font-size: 10px; font-weight: 900; letter-spacing: .18em; color: #dc1f2a; text-transform: uppercase; }
               .header-author { text-align: right; font-size: 11px; color: #4b5563; }
               .brand { font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .14em; color: #dc1f2a; text-transform: uppercase; }
-              h1 { font-size: 34px; line-height: 1.12; margin: 12px 0; page-break-after: avoid; }
+              h1 { font-size: 34px; line-height: 1.12; margin: 22px 0 14px; page-break-after: avoid; break-after: avoid-page; }
+              h2, h3 { page-break-after: avoid; break-after: avoid-page; }
               .excerpt { font-size: 18px; color: #4b5563; }
               .meta, .source, .language { font-family: Arial, sans-serif; color: #4b5563; font-size: 13px; }
               img { width: 100%; max-height: 420px; object-fit: cover; margin: 24px 0; border-radius: 8px; page-break-inside: avoid; }
               article { font-size: 17px; }
-              article p, article blockquote, article li { page-break-inside: avoid; }
-              .end-note { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
+              article p, article blockquote, article li { page-break-inside: avoid; break-inside: avoid-page; }
+              .source, .end-note { page-break-inside: avoid; break-inside: avoid-page; }
+              .end-note { margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
               @page { margin: 14mm; }
               @media print { .pdf-watermark { position:fixed; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
             </style>
