@@ -102,8 +102,12 @@ export default function LoginPage() {
   return (
     <>
       <Seo title="Login | FTP News / KMC News Portal" />
-      <section className="container-page flex min-h-[70vh] items-center justify-center py-12">
-        <div className="grid w-full max-w-5xl gap-6 md:grid-cols-2">
+      <section className="container-page auth-page flex min-h-[70vh] items-center justify-center py-8 sm:py-12">
+        <div className="auth-layout grid w-full max-w-5xl gap-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-soft md:grid-cols-2">
+        <div className="auth-intro hidden flex-col justify-between bg-gray-950 p-8 text-white md:col-span-2 md:flex md:flex-row md:items-end">
+          <div><p className="section-kicker text-red-300">THE FTP NEWS</p><h1 className="mt-4 font-serif text-4xl font-bold">Join the conversation.</h1><p className="mt-4 text-sm leading-7 text-gray-300">Read independent reporting from Odisha and across India. Join to like, comment, save stories, and connect with the newsroom.</p></div>
+          <p className="mt-10 border-t border-white/15 pt-4 text-xs font-bold uppercase tracking-[0.16em] text-gray-400">Fresh Take Politics</p>
+        </div>
         <form onSubmit={submit} className="news-card p-6">
           <h1 className="text-2xl font-extrabold">Join / Login</h1>
           <label className="label mt-5 block">Email</label>
@@ -136,7 +140,7 @@ export default function LoginPage() {
             New here? <Link to="/signup" className="font-bold text-brand-red">Create account</Link>
           </p>
         </form>
-        <form onSubmit={otpSent ? verifyOtp : sendOtp} className="news-card p-6">
+        <form onSubmit={otpSent ? verifyOtp : sendOtp} className="news-card border-0 p-6 md:border-l md:border-gray-200">
           <h2 className="text-2xl font-extrabold">Join with Phone</h2>
           <p className="mt-3 text-sm leading-6 text-gray-600">
             Enter 10 digit Indian number or international format. Example: 9876543210 or +919876543210.

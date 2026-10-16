@@ -481,9 +481,9 @@ export default function ArticlePage() {
           ],
         }}
       />
-      <article className="article-page bg-[#f2f4f6]">
-        <div className="container-page grid gap-8 py-5 sm:py-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div>
+      <article className="article-page article-reading bg-[#f2f4f6]">
+        <div className="container-page article-reading-layout grid gap-8 py-5 sm:py-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="article-main-column min-w-0">
             <nav className="article-breadcrumb mb-5 flex flex-wrap gap-2 text-xs font-bold text-gray-500" aria-label="Breadcrumb">
               <Link to="/" className="hover:text-brand-red">Home</Link>
               <span>/</span>

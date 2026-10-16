@@ -36,7 +36,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-300 bg-white">
+    <header className="site-header sticky top-0 z-40 border-b border-gray-300 bg-white">
       <div className="border-b border-gray-200 bg-gray-950 text-white">
         <div className="container-page flex min-h-9 items-center justify-between gap-3 text-xs font-semibold">
           <span className="hidden items-center gap-2 sm:inline-flex"><CalendarDays size={14} /> {today}</span>
@@ -46,13 +46,13 @@ export default function Navbar() {
           </button>
         </div>
       </div>
-      <div className="container-page flex min-h-20 items-center justify-between gap-3 py-3">
+      <div className="container-page masthead flex min-h-24 items-center justify-between gap-4 py-3">
         <button className="rounded-md p-2 hover:bg-gray-100 focus-visible:outline-brand-red lg:hidden" onClick={() => setOpen((value) => !value)} aria-label={open ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={open} aria-controls="mobile-navigation">
           {open ? <X /> : <Menu />}
         </button>
-        <Link to="/" className="min-w-0 text-left" aria-label="THE FTP NEWS home">
+        <Link to="/" className="brand-lockup min-w-0 text-left" aria-label="THE FTP NEWS home">
           <span className="block font-serif text-4xl font-extrabold leading-none text-gray-950 sm:text-5xl">FTP</span>
-          <span className="mt-1 block text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-red sm:text-[11px]">Fresh Take Politics</span>
+          <span className="mt-1 block text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-red sm:text-[11px]">THE FTP NEWS · Fresh Take Politics</span>
         </Link>
         <form onSubmit={submitSearch} className="hidden w-72 items-center rounded-md border border-gray-200 bg-gray-50 px-3 lg:flex">
           <Search size={17} className="text-gray-400" />
@@ -73,7 +73,7 @@ export default function Navbar() {
         </div>
       </div>
       <nav aria-label="Primary navigation" className="hidden border-t border-gray-200 bg-white lg:block">
-        <div className="container-page flex min-h-11 items-center justify-center gap-5 overflow-x-auto xl:gap-7">
+        <div className="container-page flex min-h-11 items-center justify-center gap-4 overflow-x-auto xl:gap-6">
           {navItems.map(([label, path]) => (
             <NavLink key={path} to={path} className={({ isActive }) => `whitespace-nowrap border-b-2 py-3 text-xs font-extrabold uppercase tracking-wide transition-colors ${isActive ? 'border-brand-red text-brand-red' : 'border-transparent text-gray-700 hover:border-gray-400 hover:text-brand-red'}`}>
               {label}

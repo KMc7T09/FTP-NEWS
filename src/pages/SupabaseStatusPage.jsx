@@ -16,8 +16,11 @@ export default function SupabaseStatusPage() {
   return (
     <>
       <Seo title="Supabase Status | FTP NEWS" />
-      <section className="container-page space-y-4 py-10">
-        <h1 className="text-3xl font-extrabold">Supabase Connection Status</h1>
+      <section className="container-page status-page space-y-4 py-8 sm:py-12">
+        <div className="mb-6 border-b border-gray-300 pb-5">
+          <p className="section-kicker">System health</p>
+          <h1 className="mt-2 font-serif text-3xl font-extrabold">Supabase Connection Status</h1>
+        </div>
         <StatusLine label="Supabase config" ok={supabaseReady}>
           URL: <strong>{supabaseConfig.url || 'missing'}</strong>
         </StatusLine>

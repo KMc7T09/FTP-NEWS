@@ -41,14 +41,14 @@ export default function CategoryPage() {
   return (
     <>
       <Seo title={`${title} News | FTP - Fresh Take Politics`} description={descriptions[slug] || `Latest ${title} news and analysis from FTP.`} />
-      <section className="border-b border-gray-200 bg-white">
+      <section className="category-masthead border-b border-gray-200 bg-white">
         <div className="container-page py-10">
           <p className="section-kicker">FTP Category</p>
-          <h1 className="mt-2 text-4xl font-extrabold capitalize text-gray-950">{title} News</h1>
+          <h1 className="mt-2 font-serif text-4xl font-extrabold capitalize text-gray-950 sm:text-5xl">{title} News</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">{descriptions[slug] || `Latest ${title} news and analysis from FTP.`}</p>
         </div>
       </section>
-      <section className="container-page py-10">
+      <section className="container-page category-listing py-8 sm:py-10">
         {featured && <div className="mb-8"><ArticleCard article={featured} large stats={articleStats[featured.id]} /></div>}
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-extrabold">All Stories</h2>

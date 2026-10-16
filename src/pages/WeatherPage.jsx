@@ -404,13 +404,13 @@ async function fetchForecastForPlace(place) {
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code,wind_speed_10m_max',
     timezone: 'auto',
     past_days: '5',
-    forecast_days: '1',
+    forecast_days: '6',
   });
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
   if (!response.ok) throw new Error('Weather service is busy. Try again.');
   const data = await response.json();
   const days = data.daily?.time || [];
-  const history = days.map((date, index) => ({
+  const mapDay = (date, index) => ({
     id: `live-${place.latitude}-${place.longitude}-${date}`,
     reportDate: date,
     city: place.name || place.city || 'Current Location',
@@ -422,14 +422,19 @@ async function fetchForecastForPlace(place) {
     longitude: place.longitude,
     temperatureMax: data.daily?.temperature_2m_max?.[index] ?? null,
     temperatureMin: data.daily?.temperature_2m_min?.[index] ?? null,
-    temperatureCurrent: index === days.length - 1 ? data.current?.temperature_2m ?? null : null,
+    temperatureCurrent: date === data.current?.time?.slice(0, 10) ? data.current?.temperature_2m ?? null : null,
     precipitationProbability: data.daily?.precipitation_probability_max?.[index] ?? null,
     rainfall: data.daily?.rain_sum?.[index] ?? null,
-    windSpeed: data.daily?.wind_speed_10m_max?.[index] ?? (index === days.length - 1 ? data.current?.wind_speed_10m ?? null : null),
-    weatherCode: index === days.length - 1 ? data.current?.weather_code ?? data.daily?.weather_code?.[index] ?? null : data.daily?.weather_code?.[index] ?? null,
+    windSpeed: data.daily?.wind_speed_10m_max?.[index] ?? (date === data.current?.time?.slice(0, 10) ? data.current?.wind_speed_10m ?? null : null),
+    weatherCode: date === data.current?.time?.slice(0, 10) ? data.current?.weather_code ?? data.daily?.weather_code?.[index] ?? null : data.daily?.weather_code?.[index] ?? null,
     source: 'Open-Meteo live search',
-  })).reverse();
-  return { report: history[0], history };
+  });
+  const today = data.current?.time?.slice(0, 10) || new Intl.DateTimeFormat('en-CA', { timeZone: data.timezone || 'Asia/Kolkata' }).format(new Date());
+  const todayIndex = Math.max(0, days.findIndex((date) => date === today));
+  const report = mapDay(days[todayIndex], todayIndex);
+  const history = days.slice(0, todayIndex).map(mapDay).reverse();
+  const forecast = days.slice(todayIndex + 1, todayIndex + 6).map((date, offset) => mapDay(date, todayIndex + offset + 1));
+  return { report, history, forecast };
 }
 
 export default function WeatherPage() {
@@ -440,6 +445,7 @@ export default function WeatherPage() {
   const [results, setResults] = useState([]);
   const [liveReport, setLiveReport] = useState(null);
   const [liveHistory, setLiveHistory] = useState([]);
+  const [liveForecast, setLiveForecast] = useState([]);
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -448,6 +454,7 @@ export default function WeatherPage() {
     setHasSearched(false);
     setLiveReport(null);
     setLiveHistory([]);
+    setLiveForecast([]);
     setLoading(true);
     listWeatherReports({ limit: 10000 })
       .then(setReports)
@@ -517,9 +524,10 @@ export default function WeatherPage() {
   async function loadPlace(place) {
     setSearching(true);
     try {
-      const { report, history } = await fetchForecastForPlace(place);
+      const { report, history, forecast } = await fetchForecastForPlace(place);
       setLiveReport(report);
       setLiveHistory(history);
+      setLiveForecast(forecast);
       setQuery(cityLabel(place));
       setResults([]);
       toast.success(`Live 5-day weather loaded for ${cityLabel(place)}.`);
@@ -543,6 +551,7 @@ export default function WeatherPage() {
     setHasSearched(true);
     setLiveReport(null);
     setLiveHistory([]);
+    setLiveForecast([]);
     setResults([]);
     setSearching(true);
     try {
@@ -551,13 +560,18 @@ export default function WeatherPage() {
       const match = places.find((place) => normalizePlaceName(place.name) === normalizePlaceName(location.name)
         && (location.region === 'India' || normalizePlaceName(place.admin1 || place.admin2 || '') === expectedRegion));
       if (!match) throw new Error(`Couldn't find ${label}. Use the search field to choose a matching place.`);
-      const { report, history } = await fetchForecastForPlace(match);
+      const { report, history, forecast } = await fetchForecastForPlace(match);
       setLiveReport({
         ...report,
         city: location.name,
         state: location.region === 'India' ? (report.state || '') : location.region,
       });
       setLiveHistory(history.map((item) => ({
+        ...item,
+        city: location.name,
+        state: location.region === 'India' ? (item.state || '') : location.region,
+      })));
+      setLiveForecast(forecast.map((item) => ({
         ...item,
         city: location.name,
         state: location.region === 'India' ? (item.state || '') : location.region,
@@ -578,6 +592,7 @@ export default function WeatherPage() {
     setHasSearched(true);
     setLiveReport(null);
     setLiveHistory([]);
+    setLiveForecast([]);
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -585,7 +600,7 @@ export default function WeatherPage() {
           const latitude = position.coords.latitude;
           const longitude = position.coords.longitude;
           const place = await reverseLocation(latitude, longitude).catch(() => null);
-          const { report, history } = await fetchForecastForPlace({
+          const { report, history, forecast } = await fetchForecastForPlace({
             name: place?.name || 'Current Location',
             state: place?.state || '',
             country: place?.country || 'Detected by browser',
@@ -595,6 +610,7 @@ export default function WeatherPage() {
           });
           setLiveReport(report);
           setLiveHistory(history);
+          setLiveForecast(forecast);
           toast.success(place?.pinCode ? `Location weather loaded. PIN: ${place.pinCode}` : 'Current location weather loaded.');
         } catch (error) {
           toast.error(error.message || 'Location weather failed.');
@@ -627,9 +643,9 @@ export default function WeatherPage() {
         <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="border-b-4 border-brand-red bg-gray-950 p-6 text-white sm:p-8 lg:border-b-0 lg:border-r-4">
             <p className="section-kicker text-red-200">All India District Weather</p>
-            <h1 className="mt-3 text-4xl font-black tracking-normal sm:text-5xl">Weather Intelligence</h1>
+            <h1 className="mt-3 font-serif text-4xl font-black tracking-normal sm:text-5xl">India Weather, Made Simple</h1>
             <p className="mt-4 max-w-xl text-sm leading-6 text-gray-200">
-              Search any Indian district, any city, or an international place. See current weather, PIN-aware location weather, and the last 5 days trend.
+              Search a city or district for current conditions, a five-day forecast, and recent saved observations.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <div className="rounded-md bg-white/10 p-3">
@@ -715,12 +731,34 @@ export default function WeatherPage() {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="section-kicker">{liveReport ? 'Live searched report' : 'Featured saved report'}</p>
-              <h2 className="text-2xl font-extrabold text-gray-950">Current + recent daily observations</h2>
-              <p className="mt-1 text-sm text-gray-600">Each date shows its recorded condition, daily high, and rainfall. Past days are observations, not forecasts.</p>
+              <h2 className="text-2xl font-extrabold text-gray-950">Current conditions</h2>
+              <p className="mt-1 text-sm text-gray-600">Recent observations and the forecast are shown separately below.</p>
             </div>
             <Activity className="text-brand-red" />
           </div>
           <WeatherCard report={featured} featured history={featuredHistory} logoURL={settings.logoURL} />
+          {liveForecast.length > 0 && (
+            <section className="forecast-strip mt-6" aria-label="Five-day weather forecast">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="section-kicker">Open-Meteo forecast</p>
+                  <h3 className="mt-1 text-xl font-extrabold">Next five days</h3>
+                </div>
+                <span className="text-xs font-semibold text-gray-500">Forecast, not past observations</span>
+              </div>
+              <div className="grid auto-cols-[minmax(145px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-3 sm:grid-flow-row sm:grid-cols-3 lg:grid-cols-5">
+                {liveForecast.map((day) => (
+                  <article key={day.reportDate} className="min-w-0 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-extrabold uppercase text-gray-500">{formatReportDate(day.reportDate, true)}</p>
+                    <CloudSun className="my-4 text-brand-red" size={25} />
+                    <p className="font-bold text-gray-900">{WEATHER_TEXT.get(Number(day.weatherCode)) || 'Weather update'}</p>
+                    <p className="mt-2 text-lg font-black">{day.temperatureMax ?? '-'}° <span className="text-sm font-semibold text-gray-500">/ {day.temperatureMin ?? '-'}°</span></p>
+                    <p className="mt-2 text-xs text-gray-600">Rain {day.precipitationProbability ?? 0}% · {day.rainfall ?? 0} mm</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
         </section>
       ) : null}
 

@@ -8,12 +8,12 @@ export default function FounderPage() {
     <>
       <Seo title="Founder | THE FTP NEWS" description="Meet KMC7T09, founder of THE FTP NEWS, a full stack developer and student from Odisha." />
       <section className="container-page py-10">
-        <div className="grid gap-8 lg:grid-cols-[340px_1fr]">
-          <div className="dashboard-card">
+        <div className="founder-profile grid gap-6 lg:grid-cols-[minmax(270px,0.72fr)_1.28fr]">
+          <div className="founder-identity dashboard-card">
             {settings.founderPhotoURL ? (
-              <img src={settings.founderPhotoURL} alt={settings.founderName || 'KMC7T09'} className="h-32 w-32 rounded-full border-4 border-white/20 object-cover" />
+              <img src={settings.founderPhotoURL} alt={settings.founderName || 'KMC7T09'} className="h-56 w-full rounded-md border border-white/15 object-cover object-center" />
             ) : (
-              <div className="flex h-32 w-32 items-center justify-center rounded-full bg-brand-red text-4xl font-extrabold text-white">FTP</div>
+              <div className="flex aspect-[4/3] w-full items-center justify-center rounded-md border border-white/15 bg-white/5 font-serif text-7xl font-black text-white">FTP</div>
             )}
             <p className="mt-6 section-kicker text-red-200">Founder</p>
             <h1 className="mt-2 text-3xl font-extrabold">{settings.founderName || 'KMC7T09'}</h1>
@@ -24,13 +24,13 @@ export default function FounderPage() {
               <p><strong>Contact:</strong> {settings.contactEmail}</p>
             </div>
           </div>
-          <div className="news-card p-6 sm:p-8">
+          <div className="founder-story news-card p-6 sm:p-9">
             <p className="section-kicker">About The Founder</p>
             <h2 className="mt-2 text-3xl font-extrabold">Building FTP as a youth-first political platform.</h2>
             <p className="mt-4 whitespace-pre-line leading-8 text-gray-700">{settings.founderBio}</p>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-0 divide-y divide-gray-200 border-y border-gray-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               {['Student', 'Full Stack Developer', 'Odisha Based'].map((item) => (
-                <div key={item} className="rounded-lg border border-gray-200 bg-[#fbfaf7] p-4 text-sm font-bold text-gray-800">
+                <div key={item} className="px-4 py-4 text-sm font-bold text-gray-800 sm:first:pl-0">
                   {item}
                 </div>
               ))}

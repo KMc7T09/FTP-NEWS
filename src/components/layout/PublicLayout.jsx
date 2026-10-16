@@ -7,7 +7,7 @@ export default function PublicLayout() {
   usePageVisitTracker();
 
   return (
-    <div className="min-h-screen bg-[#f5f6f7]">
+    <div className="public-site min-h-screen bg-[#f5f6f7]">
       <Navbar />
       <main>
         <Outlet />

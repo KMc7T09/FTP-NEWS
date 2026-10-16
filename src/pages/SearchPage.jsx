@@ -40,19 +40,19 @@ export default function SearchPage() {
   return (
     <>
       <Seo title="Search News | FTP NEWS" description="Search articles by title, category, tags, and content." />
-      <section className="border-b border-gray-200 bg-white">
+      <section className="search-masthead border-b border-gray-200 bg-white">
         <div className="container-page py-10">
           <p className="section-kicker">FTP Search</p>
-          <h1 className="mt-2 text-4xl font-extrabold text-gray-950">Search News</h1>
+          <h1 className="mt-2 font-serif text-4xl font-extrabold text-gray-950 sm:text-5xl">Search News</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">Search FTP stories by headline, category, tags, author, or article text.</p>
-          <form onSubmit={submit} className="mt-6 flex overflow-hidden rounded-lg border border-gray-300 bg-gray-50 shadow-sm">
+          <form onSubmit={submit} className="search-form mt-6 flex overflow-hidden rounded-lg border border-gray-300 bg-gray-50 shadow-sm">
             <span className="flex items-center px-4 text-gray-400"><Search size={20} /></span>
             <input className="w-full bg-transparent py-4 pr-4 text-base outline-none" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Search articles" />
           <button className="bg-brand-red px-5 font-bold text-white">Search</button>
           </form>
         </div>
       </section>
-      <section className="container-page py-10">
+      <section className="container-page search-results py-8 sm:py-10">
         <div className="mb-6 flex items-center justify-between gap-3">
           <h2 className="text-2xl font-extrabold">{term ? `Results for "${term}"` : 'Latest searchable stories'}</h2>
           <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-gray-600">{results.length} results</span>

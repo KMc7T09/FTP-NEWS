@@ -53,8 +53,8 @@ export default function ProfilePage() {
   return (
     <>
       <Seo title="Profile | FTP NEWS" />
-      <section className="container-page grid gap-6 py-6 md:gap-8 md:py-10 lg:grid-cols-[360px_1fr]">
-        <aside className="news-card p-6">
+      <section className="container-page profile-page grid gap-6 py-6 md:gap-8 md:py-10 lg:grid-cols-[360px_1fr]">
+        <aside className="profile-card news-card p-6">
           <img src={profile?.photoURL || 'https://api.dicebear.com/9.x/initials/svg?seed=Reader'} alt="" className="h-24 w-24 rounded-full object-cover" />
           <form onSubmit={saveProfile} className="mt-5 space-y-4">
             <div>
@@ -86,7 +86,7 @@ export default function ProfilePage() {
             <button className="btn-primary w-full" disabled={busy}>{busy ? 'Saving...' : 'Save Profile'}</button>
           </form>
         </aside>
-        <div className="space-y-8">
+        <div className="profile-content space-y-8">
           <section>
             <h1 className="mb-4 text-2xl font-extrabold">Comment History</h1>
             <div className="space-y-3">

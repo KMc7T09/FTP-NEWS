@@ -58,7 +58,7 @@ export default function HomePage() {
         }}
       />
       <BreakingTicker articles={latest} />
-      <section className="border-b border-gray-200 bg-white">
+      <section className="home-frontpage border-b border-gray-200 bg-white">
         <div className="container-page grid gap-8 py-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:py-9">
           <div className="space-y-6">
             <div className="flex flex-wrap items-end justify-between gap-4 border-b border-gray-200 pb-5">

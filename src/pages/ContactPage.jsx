@@ -48,8 +48,8 @@ export default function ContactPage() {
   return (
     <>
       <Seo title="Contact | THE FTP NEWS" description="Contact THE FTP NEWS for news tips, corrections, partnerships, advertising, and editorial queries." />
-      <section className="container-page py-10">
-        <div className="trust-hero">
+      <section className="container-page editorial-page contact-page py-8 sm:py-12">
+        <div className="editorial-hero trust-hero">
           <p className="section-kicker text-red-200">Reader Desk</p>
           <h1 className="mt-2 text-4xl font-extrabold sm:text-5xl">Contact FTP Newsroom</h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-200">
@@ -67,8 +67,8 @@ export default function ContactPage() {
           </div>
         ) : null}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
-          <form onSubmit={submit} className="news-card grid gap-4 p-5 md:grid-cols-2">
+        <div className="contact-layout mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <form onSubmit={submit} className="contact-form news-card grid gap-5 p-5 sm:p-7 md:grid-cols-2">
             <div className="md:col-span-2">
               <p className="section-kicker">Secure Message</p>
               <h2 className="mt-2 text-2xl font-extrabold">Write to FTP</h2>

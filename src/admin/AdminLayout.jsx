@@ -20,7 +20,7 @@ export default function AdminLayout() {
   const visibleLinks = links.filter(([, , , required]) => !required || (required === 'superadmin' ? isSuperAdmin : isAdmin));
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+    <div className="admin-shell min-h-screen bg-[#f4f6f8] lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
       <aside className="border-r border-gray-900 bg-gray-950 text-white lg:min-h-screen">
         <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5">
           <ShieldCheck className="text-brand-red" />
