@@ -339,6 +339,7 @@ export default function ArticlePage() {
       const author = cleanAuthorName(article.authorName, 'FTP Desk');
       const image = article.featuredImageURL || '';
       const pdfLogoURL = settings.logoURL || new URL('/ftp-news-logo.png', window.location.href).href;
+      const fallbackLogo = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><rect width="320" height="180" fill="#fff"/><text x="160" y="112" text-anchor="middle" font-family="Georgia,serif" font-size="112" font-weight="700" fill="#101820">F<tspan fill="#c51c25">T</tspan>P</text></svg>')}`;
       const source = article.sourceURL
         ? `<p><strong>Source:</strong> <a href="${escapeHtml(article.sourceURL)}">${escapeHtml(article.sourceName || article.sourceURL)}</a></p>`
         : article.sourceName
@@ -354,7 +355,10 @@ export default function ArticlePage() {
             <meta charset="utf-8" />
             <style>
               * { box-sizing: border-box; }
-              body { font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 72px 36px 64px; line-height: 1.65; }
+              body { position:relative; isolation:isolate; font-family: Georgia, 'Times New Roman', serif; color: #111827; margin: 0; padding: 72px 36px 64px; line-height: 1.65; }
+              .pdf-watermark { position:fixed; inset:0; z-index:0; display:grid; place-items:center; pointer-events:none; }
+              .pdf-watermark img { display:block; width:min(58vw, 470px); height:min(62vh, 470px); object-fit:contain; opacity:.055; }
+              body > :not(.pdf-watermark) { position:relative; z-index:1; }
               .pdf-header, .pdf-footer {
                 position: fixed;
                 left: 0;
@@ -372,7 +376,7 @@ export default function ArticlePage() {
                 justify-content: space-between;
                 gap: 18px;
               }
-              img.brand-logo { display:block; width:164px; height:100px; max-height:none; object-fit:cover; object-position:center; margin:0; border-radius:0; }
+              img.brand-logo { display:block; width:164px; height:100px; max-height:none; object-fit:contain; object-position:center; margin:0; border-radius:0; }
               .pdf-footer {
                 bottom: 0;
                 border-top: 1px solid #e5e7eb;
@@ -380,6 +384,7 @@ export default function ArticlePage() {
                 font-size: 11px;
                 color: #6b7280;
               }
+              body > .pdf-header, body > .pdf-footer { position:fixed; z-index:2; }
               .logo { font-size: 24px; font-weight: 900; letter-spacing: -0.04em; }
               .tagline { font-size: 10px; font-weight: 900; letter-spacing: .18em; color: #dc1f2a; text-transform: uppercase; }
               .header-author { text-align: right; font-size: 11px; color: #4b5563; }
@@ -392,11 +397,15 @@ export default function ArticlePage() {
               article p, article blockquote, article li { page-break-inside: avoid; }
               .end-note { margin-top: 36px; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: Arial, sans-serif; font-size: 12px; color: #6b7280; }
               @page { margin: 14mm; }
+              @media print { .pdf-watermark { position:fixed; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
             </style>
           </head>
           <body>
+            <div class="pdf-watermark" aria-hidden="true">
+              <img src="${escapeHtml(pdfLogoURL)}" alt="" onerror="this.onerror=null;this.src='${fallbackLogo}'" />
+            </div>
             <header class="pdf-header">
-              <img class="brand-logo" src="${escapeHtml(pdfLogoURL)}" alt="FTP Fresh Take Politics logo" />
+              <img class="brand-logo" src="${escapeHtml(pdfLogoURL)}" alt="FTP Fresh Take Politics logo" onerror="this.onerror=null;this.src='${fallbackLogo}'" />
               <div class="header-author">
                 <strong>${escapeHtml(author)}</strong><br />
                 ${escapeHtml(article.categoryName || 'News')} | ${escapeHtml(formatDate(article.publishedAt))}

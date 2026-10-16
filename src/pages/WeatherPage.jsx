@@ -242,7 +242,10 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
         <style>
           @page { size: landscape; margin: 14mm; }
           * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; color: #15202b; margin: 0; background: #fff; }
+          body { position:relative; isolation:isolate; font-family: Arial, sans-serif; color: #15202b; margin: 0; background: #fff; }
+          .pdf-watermark { position:fixed; inset:0; z-index:0; display:grid; place-items:center; pointer-events:none; }
+          .pdf-watermark img { display:block; width:min(58vw, 470px); height:min(62vh, 470px); object-fit:contain; opacity:.055; }
+          body > :not(.pdf-watermark) { position:relative; z-index:1; }
           .masthead { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d9dee5; padding:0 0 14px; }
           .brand { display:flex; align-items:center; }
           .mark { display:block; width:164px; height:100px; object-fit:cover; object-position:center; }
@@ -263,10 +266,11 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
           th, td { border:1px solid #d9dee5; padding:8px; }
           tr:nth-child(even) td { background:#f6f7f9; }
           footer { display:flex; justify-content:space-between; gap:20px; margin-top:24px; padding-top:10px; border-top:1px solid #d9dee5; font-size:9px; color:#64748b; }
-          @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } tr { break-inside:avoid; } }
+          @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } .pdf-watermark { position:fixed; } tr { break-inside:avoid; } }
         </style>
       </head>
       <body>
+        <div class="pdf-watermark" aria-hidden="true"><img src="${logoSource}" alt="" onerror="this.onerror=null;this.src='${fallbackLogo}'" /></div>
         <header class="masthead">
           <div class="brand"><img class="mark" src="${logoSource}" alt="FTP Fresh Take Politics logo" onerror="this.onerror=null;this.src='${fallbackLogo}'" /></div>
           <div class="edition">WEATHER DESK<br/>Generated ${escapePdfText(generatedAt)}</div>
