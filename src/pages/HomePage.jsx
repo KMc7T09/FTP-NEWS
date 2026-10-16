@@ -77,12 +77,13 @@ export default function HomePage() {
               <input className="w-full bg-transparent py-3 pr-4 outline-none" placeholder="Search title, category, tags, or story text" value={search} onChange={(event) => setSearch(event.target.value)} />
               <button className="bg-brand-red px-4 text-sm font-bold text-white sm:px-5">Search</button>
             </form>
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(250px,0.8fr)]">
+            <div className="space-y-5">
               {hero ? <ArticleCard article={hero} large priority stats={articleStats[hero.id]} /> : loading ? <ArticleSkeleton /> : <div className="news-card p-6 text-sm text-gray-600">No published stories yet.</div>}
-              <div className="grid content-start gap-5">
-                {secondary.map((article) => <ArticleCard key={article.id} article={article} compact stats={articleStats[article.id]} />)}
-                {!loading && !secondary.length && <p className="rounded-lg border border-dashed border-gray-300 p-5 text-sm text-gray-500">More top stories will appear here as they are published.</p>}
-              </div>
+              {secondary.length > 0 ? (
+                <div className="grid gap-5 md:grid-cols-2">
+                  {secondary.map((article) => <ArticleCard key={article.id} article={article} compact stats={articleStats[article.id]} />)}
+                </div>
+              ) : !loading ? <p className="rounded-lg border border-dashed border-gray-300 p-5 text-sm text-gray-500">More top stories will appear here as they are published.</p> : null}
             </div>
           </div>
           <div className="space-y-6">
