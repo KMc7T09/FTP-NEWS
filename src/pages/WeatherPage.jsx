@@ -36,21 +36,21 @@ const WEATHER_TEXT = new Map([
 ]);
 
 const QUICK_DISTRICTS = [
-  'Bhubaneswar Odisha',
-  'Cuttack Odisha',
-  'Puri Odisha',
-  'Ganjam Odisha',
-  'Sambalpur Odisha',
-  'Mayurbhanj Odisha',
-  'Balasore Odisha',
-  'Koraput Odisha',
-  'Sundargarh Odisha',
-  'Delhi India',
-  'Mumbai India',
-  'Kolkata India',
-  'Chennai India',
-  'Bengaluru India',
-  'Hyderabad India',
+  { name: 'Bhubaneswar', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Cuttack', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Puri', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Ganjam', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Sambalpur', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Mayurbhanj', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Balasore', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Koraput', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Sundargarh', region: 'Odisha', countryCode: 'IN' },
+  { name: 'Delhi', region: 'India', countryCode: 'IN' },
+  { name: 'Mumbai', region: 'India', countryCode: 'IN' },
+  { name: 'Kolkata', region: 'India', countryCode: 'IN' },
+  { name: 'Chennai', region: 'India', countryCode: 'IN' },
+  { name: 'Bengaluru', region: 'India', countryCode: 'IN' },
+  { name: 'Hyderabad', region: 'India', countryCode: 'IN' },
 ];
 
 function formatReportDate(value, compact = false) {
@@ -442,8 +442,12 @@ export default function WeatherPage() {
   const [liveHistory, setLiveHistory] = useState([]);
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   function loadReports() {
+    setHasSearched(false);
+    setLiveReport(null);
+    setLiveHistory([]);
     setLoading(true);
     listWeatherReports({ limit: 10000 })
       .then(setReports)
@@ -459,14 +463,15 @@ export default function WeatherPage() {
     const dates = [...new Set(reports.map((item) => item.reportDate))].slice(0, 5);
     return reports.filter((item) => dates.includes(item.reportDate));
   }, [reports]);
-  const featured = liveReport || latestReports[0];
+  const featured = liveReport || (!hasSearched ? latestReports[0] : null);
   const featuredHistory = liveReport ? liveHistory : fiveDaySaved.filter((item) => item.city === featured?.city).slice(0, 5);
-  const gridReports = latestReports.filter((item) => item.id !== featured?.id);
+  const gridReports = hasSearched ? [] : latestReports.filter((item) => item.id !== featured?.id);
 
   async function searchCity(event, forcedQuery = '') {
     event?.preventDefault?.();
     const term = forcedQuery || query.trim();
     if (!term) return;
+    setHasSearched(true);
     setSearching(true);
     setLiveReport(null);
     setLiveHistory([]);
@@ -509,8 +514,7 @@ export default function WeatherPage() {
     }
   }
 
-  async function selectPlace(place) {
-    if (searching) return;
+  async function loadPlace(place) {
     setSearching(true);
     try {
       const { report, history } = await fetchForecastForPlace(place);
@@ -526,11 +530,54 @@ export default function WeatherPage() {
     }
   }
 
+  async function selectPlace(place) {
+    if (searching) return;
+    setHasSearched(true);
+    await loadPlace(place);
+  }
+
+  async function selectPopularLocation(location) {
+    if (searching) return;
+    const label = `${location.name}, ${location.region}`;
+    setQuery(label);
+    setHasSearched(true);
+    setLiveReport(null);
+    setLiveHistory([]);
+    setResults([]);
+    setSearching(true);
+    try {
+      const places = await geocodePlaces(location.name, location.countryCode);
+      const expectedRegion = normalizePlaceName(location.region);
+      const match = places.find((place) => normalizePlaceName(place.name) === normalizePlaceName(location.name)
+        && (location.region === 'India' || normalizePlaceName(place.admin1 || place.admin2 || '') === expectedRegion));
+      if (!match) throw new Error(`Couldn't find ${label}. Use the search field to choose a matching place.`);
+      const { report, history } = await fetchForecastForPlace(match);
+      setLiveReport({
+        ...report,
+        city: location.name,
+        state: location.region === 'India' ? (report.state || '') : location.region,
+      });
+      setLiveHistory(history.map((item) => ({
+        ...item,
+        city: location.name,
+        state: location.region === 'India' ? (item.state || '') : location.region,
+      })));
+      toast.success(`Weather loaded for ${label}.`);
+    } catch (error) {
+      toast.error(error.message || `Weather search failed for ${label}.`);
+    } finally {
+      setSearching(false);
+    }
+  }
+
   function useCurrentLocation() {
     if (!navigator.geolocation) {
       toast.error('Current location is not supported in this browser.');
       return;
     }
+    setHasSearched(true);
+    setLiveReport(null);
+    setLiveHistory([]);
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -634,8 +681,8 @@ export default function WeatherPage() {
               <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Popular locations</p>
               <div className="mt-2 flex flex-wrap gap-2">
               {QUICK_DISTRICTS.map((item) => (
-                <button key={item} type="button" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50" disabled={searching} onClick={() => { setQuery(item); searchCity(null, item); }}>
-                  {item}
+                <button key={item.name} type="button" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50" disabled={searching} onClick={() => selectPopularLocation(item)}>
+                  {item.name}
                 </button>
               ))}
               </div>
@@ -699,6 +746,12 @@ export default function WeatherPage() {
               />
             ))}
           </div>
+        </section>
+      ) : hasSearched ? (
+        <section className="news-card p-8 text-center">
+          <CloudSun className="mx-auto text-brand-red" size={38} />
+          <h2 className="mt-3 text-xl font-extrabold">No weather report selected</h2>
+          <p className="mt-2 text-sm text-gray-600">Choose a search result or try another city or PIN code.</p>
         </section>
       ) : (
         <section className="news-card p-8 text-center">
