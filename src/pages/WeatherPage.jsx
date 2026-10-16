@@ -84,6 +84,46 @@ function reportToPlace(report) {
   };
 }
 
+async function geocodePlaces(name, countryCode = '') {
+  const params = new URLSearchParams({ name, count: '12', language: 'en', format: 'json' });
+  if (countryCode) params.set('countryCode', countryCode);
+  const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+  if (!response.ok) throw new Error('City or district search failed.');
+  const data = await response.json();
+  return data.results || [];
+}
+
+async function geocodeIndianPin(pinCode) {
+  let offices = [];
+  try {
+    const response = await fetch(`https://api.postalpincode.in/pincode/${pinCode}`);
+    if (response.ok) {
+      const data = await response.json();
+      offices = data?.[0]?.Status === 'Success' ? (data[0].PostOffice || []) : [];
+    }
+  } catch {
+    // Fall through to Open-Meteo's postal-code search if the postal lookup is unavailable.
+  }
+
+  const districtStatePairs = [...new Map(offices
+    .filter((office) => office.District && office.State)
+    .map((office) => [`${office.District}|${office.State}`, office]))
+    .values()].slice(0, 3);
+  const places = [];
+  for (const office of districtStatePairs) {
+    try {
+      const matches = await geocodePlaces(`${office.District}, ${office.State}`, 'IN');
+      places.push(...matches.map((place) => ({ ...place, pinCode })));
+    } catch {
+      // Try other post offices for this PIN before using the direct postal search.
+    }
+  }
+  if (places.length) return places;
+
+  const directMatches = await geocodePlaces(pinCode, 'IN');
+  return directMatches.map((place) => ({ ...place, pinCode }));
+}
+
 function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = '' }) {
   const rows = reports.map((report) => `
     <tr>
@@ -354,13 +394,11 @@ export default function WeatherPage() {
       })
       .map(reportToPlace);
     try {
-      const params = new URLSearchParams({ name: term, count: '12', language: 'en', format: 'json' });
       let places = [];
       try {
-        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
-        if (!response.ok) throw new Error('City or district search failed.');
-        const data = await response.json();
-        places = data.results || [];
+        places = /^\d{6}$/.test(term)
+          ? await geocodeIndianPin(term)
+          : await geocodePlaces(term);
       } catch (error) {
         if (!savedMatches.length) throw error;
       }
@@ -373,7 +411,9 @@ export default function WeatherPage() {
         return true;
       }).slice(0, 12);
       setResults(combined);
-      if (!combined.length) toast.error('No matching place found. Try a city name, or district + state, such as Puri Odisha.');
+      if (!combined.length) toast.error(/^\d{6}$/.test(term)
+        ? 'No place found for this PIN code. Check the six digits and try again.'
+        : 'No matching place found. Try a city name, or district + state, such as Puri Odisha.');
     } catch (error) {
       toast.error(savedMatches.length ? 'Could not search right now. Choose a saved location below.' : error.message || 'City search failed.');
       setResults(savedMatches);
@@ -477,7 +517,7 @@ export default function WeatherPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-10 pr-3 text-sm font-semibold outline-none transition focus:border-brand-red focus:ring-2 focus:ring-red-100"
-                  placeholder="City or district: Puri Odisha, Jaipur, London"
+                  placeholder="City, district, or 6-digit PIN: Puri Odisha, 751001, London"
                   aria-label="Search city or district weather"
                   autoComplete="off"
                   value={query}

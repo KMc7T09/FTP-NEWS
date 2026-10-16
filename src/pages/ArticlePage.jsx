@@ -26,6 +26,7 @@ import {
   toggleLike,
 } from '../supabase/api.js';
 import { getModerationReason, hasVulgarContent } from '../utils/moderation.js';
+import useSettings from '../hooks/useSettings.js';
 
 function stripHtml(value = '') {
   const element = document.createElement('div');
@@ -117,6 +118,7 @@ function highlightArticleHtml(html = '', article = {}) {
 export default function ArticlePage() {
   const { slug } = useParams();
   const { currentUser, profile, isBanned, loading } = useAuth();
+  const settings = useSettings();
   const [article, setArticle] = useState(null);
   const [related, setRelated] = useState([]);
   const [comments, setComments] = useState([]);
@@ -331,6 +333,7 @@ export default function ArticlePage() {
       const { title, excerpt, body, languageLabel } = await getPdfContent(target);
       const author = cleanAuthorName(article.authorName, 'FTP Desk');
       const image = article.featuredImageURL || '';
+      const pdfLogoURL = settings.logoURL || new URL('/ftp-news-logo.png', window.location.href).href;
       const source = article.sourceURL
         ? `<p><strong>Source:</strong> <a href="${escapeHtml(article.sourceURL)}">${escapeHtml(article.sourceName || article.sourceURL)}</a></p>`
         : article.sourceName
@@ -364,6 +367,7 @@ export default function ArticlePage() {
                 justify-content: space-between;
                 gap: 18px;
               }
+              img.brand-logo { display:block; width:164px; height:100px; max-height:none; object-fit:cover; object-position:center; margin:0; border-radius:0; }
               .pdf-footer {
                 bottom: 0;
                 border-top: 1px solid #e5e7eb;
@@ -387,10 +391,7 @@ export default function ArticlePage() {
           </head>
           <body>
             <header class="pdf-header">
-              <div>
-                <div class="logo">FTP</div>
-                <div class="tagline">Fresh Take Politics</div>
-              </div>
+              <img class="brand-logo" src="${escapeHtml(pdfLogoURL)}" alt="FTP Fresh Take Politics logo" />
               <div class="header-author">
                 <strong>${escapeHtml(author)}</strong><br />
                 ${escapeHtml(article.categoryName || 'News')} | ${escapeHtml(formatDate(article.publishedAt))}
@@ -410,9 +411,13 @@ export default function ArticlePage() {
             <div class="end-note">Downloaded from FTP - Fresh Take Politics.</div>
             <script>
               window.onload = function () {
-                setTimeout(function () {
-                  window.print();
-                }, 500);
+                Promise.all(Array.from(document.images, function (image) {
+                  return image.complete ? Promise.resolve() : new Promise(function (resolve) {
+                    image.onload = image.onerror = resolve;
+                  });
+                })).then(function () {
+                  setTimeout(function () { window.print(); }, 300);
+                });
               };
             </script>
           </body>
