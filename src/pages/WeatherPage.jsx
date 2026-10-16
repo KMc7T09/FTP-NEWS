@@ -62,63 +62,103 @@ function slugify(value = 'weather') {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'weather';
 }
 
+function escapePdfText(value = '') {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+}
+
+function normalizePlaceName(value = '') {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function reportToPlace(report) {
+  return {
+    id: `saved-${report.id}`,
+    name: report.city,
+    admin1: report.state || '',
+    country: report.country || 'India',
+    latitude: Number(report.latitude),
+    longitude: Number(report.longitude),
+  };
+}
+
 function openPdfReport({ title, subtitle, reports, locationNote = '' }) {
   const rows = reports.map((report) => `
     <tr>
-      <td>${formatReportDate(report.reportDate, true)}</td>
-      <td>${report.city}</td>
-      <td>${report.state || '-'}</td>
-      <td>${report.temperatureCurrent ?? '-'}</td>
-      <td>${report.temperatureMax ?? '-'}</td>
-      <td>${report.temperatureMin ?? '-'}</td>
-      <td>${report.precipitationProbability ?? 0}%</td>
-      <td>${report.rainfall ?? 0} mm</td>
-      <td>${report.windSpeed ?? '-'} km/h</td>
+      <td>${escapePdfText(formatReportDate(report.reportDate, true))}</td>
+      <td><strong>${escapePdfText(report.city)}</strong></td>
+      <td>${escapePdfText(report.state || '-')}</td>
+      <td>${escapePdfText(report.temperatureCurrent ?? '-')}°</td>
+      <td>${escapePdfText(report.temperatureMax ?? '-')}°</td>
+      <td>${escapePdfText(report.temperatureMin ?? '-')}°</td>
+      <td>${escapePdfText(report.precipitationProbability ?? 0)}%</td>
+      <td>${escapePdfText(report.rainfall ?? 0)} mm</td>
+      <td>${escapePdfText(report.windSpeed ?? '-')} km/h</td>
     </tr>
   `).join('');
 
-  const summary = reports[0] ? weatherSummary(reports[0]) : '';
-  const win = window.open('', '_blank', 'noopener,noreferrer');
+  const summary = reports[0] ? escapePdfText(weatherSummary(reports[0])) : '';
+  const generatedAt = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
+  const win = window.open('', '_blank');
   if (!win) {
     toast.error('Popup blocked. Allow popups to download PDF.');
     return;
   }
+  win.opener = null;
   win.document.write(`
     <!doctype html>
     <html>
       <head>
-        <title>${title}</title>
+        <meta charset="utf-8" />
+        <title>${escapePdfText(title)} | FTP Weather</title>
         <style>
-          @page { margin: 18mm; }
-          body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; }
-          .brand { border-bottom: 4px solid #dc2626; padding-bottom: 18px; margin-bottom: 24px; }
-          .kicker { color: #dc2626; font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
-          h1 { font-family: Georgia, serif; font-size: 34px; margin: 8px 0 4px; }
-          h2 { font-size: 19px; margin: 0; color: #334155; }
-          .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
-          .box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; background: #f8fafc; }
-          .box strong { display: block; font-size: 22px; margin-top: 6px; }
-          .summary { border-left: 5px solid #dc2626; padding: 14px 16px; background: #fff1f2; margin: 22px 0; line-height: 1.6; }
-          table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 12px; }
-          th { background: #020617; color: white; text-align: left; }
-          th, td { border: 1px solid #e5e7eb; padding: 9px; }
-          tr:nth-child(even) td { background: #f8fafc; }
-          footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #64748b; }
+          @page { size: landscape; margin: 14mm; }
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; color: #15202b; margin: 0; background: #fff; }
+          .masthead { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d9dee5; padding:0 0 14px; }
+          .brand { display:flex; align-items:center; gap:12px; }
+          .mark { display:grid; place-items:center; width:48px; height:48px; background:#101820; color:#fff; border-bottom:4px solid #d71920; font-family:Georgia,serif; font-size:20px; font-weight:900; }
+          .brand-name { font-family:Georgia,serif; font-size:20px; font-weight:800; }
+          .brand-line { margin-top:3px; color:#d71920; font-size:9px; font-weight:800; letter-spacing:2px; }
+          .edition { color:#64748b; font-size:10px; text-align:right; line-height:1.7; }
+          .heading { margin:24px 0 18px; }
+          .kicker { color:#c51c25; font-size:10px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+          h1 { font-family:Georgia,serif; font-size:32px; margin:6px 0; }
+          h2 { font-size:14px; font-weight:500; margin:0; color:#52606d; }
+          .location { margin-top:8px; color:#52606d; font-size:11px; }
+          .meta { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
+          .box { border:1px solid #d9dee5; border-top:3px solid #d71920; padding:12px 14px; background:#f7f8fa; }
+          .box span { color:#64748b; font-size:9px; font-weight:800; letter-spacing:1px; text-transform:uppercase; }
+          .box strong { display:block; font-family:Georgia,serif; font-size:23px; margin-top:5px; }
+          .summary { border-left:4px solid #d71920; padding:11px 14px; background:#f8f3f3; margin:18px 0; font-size:11px; line-height:1.6; }
+          .table-heading { margin:22px 0 8px; font-family:Georgia,serif; font-size:17px; }
+          table { width:100%; border-collapse:collapse; margin-top:8px; font-size:10px; }
+          th { background:#101820; color:white; text-align:left; text-transform:uppercase; letter-spacing:.4px; font-size:9px; }
+          th, td { border:1px solid #d9dee5; padding:8px; }
+          tr:nth-child(even) td { background:#f6f7f9; }
+          footer { display:flex; justify-content:space-between; gap:20px; margin-top:24px; padding-top:10px; border-top:1px solid #d9dee5; font-size:9px; color:#64748b; }
+          @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } tr { break-inside:avoid; } }
         </style>
       </head>
       <body>
-        <section class="brand">
-          <div class="kicker">THE FTP NEWS | Fresh Take Politics</div>
-          <h1>${title}</h1>
-          <h2>${subtitle}</h2>
-          ${locationNote ? `<p>${locationNote}</p>` : ''}
+        <header class="masthead">
+          <div class="brand"><div class="mark">FTP</div><div><div class="brand-name">THE FTP NEWS</div><div class="brand-line">FRESH TAKE POLITICS</div></div></div>
+          <div class="edition">WEATHER DESK<br/>Generated ${escapePdfText(generatedAt)}</div>
+        </header>
+        <section class="heading">
+          <div class="kicker">Official weather brief</div>
+          <h1>${escapePdfText(title)}</h1>
+          <h2>${escapePdfText(subtitle)}</h2>
+          ${locationNote ? `<p class="location">${escapePdfText(locationNote)}</p>` : ''}
         </section>
         <section class="meta">
-          <div class="box">Current<strong>${reports[0]?.temperatureCurrent ?? '-'} C</strong></div>
-          <div class="box">Rain chance<strong>${reports[0]?.precipitationProbability ?? 0}%</strong></div>
-          <div class="box">Wind<strong>${reports[0]?.windSpeed ?? '-'} km/h</strong></div>
+          <div class="box"><span>Current temperature</span><strong>${escapePdfText(reports[0]?.temperatureCurrent ?? reports[0]?.temperatureMax ?? '-')}° C</strong></div>
+          <div class="box"><span>Rain probability</span><strong>${escapePdfText(reports[0]?.precipitationProbability ?? 0)}%</strong></div>
+          <div class="box"><span>Wind speed</span><strong>${escapePdfText(reports[0]?.windSpeed ?? '-')} km/h</strong></div>
         </section>
         <section class="summary">${summary}</section>
+        <h3 class="table-heading">Daily observations</h3>
         <table>
           <thead>
             <tr>
@@ -128,7 +168,8 @@ function openPdfReport({ title, subtitle, reports, locationNote = '' }) {
           <tbody>${rows}</tbody>
         </table>
         <footer>
-          Source: Open-Meteo weather data. Location names may be approximate when detected by browser GPS/network. Generated by THE FTP NEWS.
+          <span>Source: Open-Meteo weather data. Location names and browser-detected PIN codes may be approximate.</span>
+          <strong>THE FTP NEWS · FRESH TAKE POLITICS</strong>
         </footer>
         <script>window.onload = () => setTimeout(() => window.print(), 250);</script>
       </body>
@@ -223,9 +264,14 @@ async function reverseLocation(latitude, longitude) {
 }
 
 async function fetchForecastForPlace(place) {
+  const latitude = Number(place.latitude);
+  const longitude = Number(place.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error('This search result has no usable map coordinates. Try another matching location.');
+  }
   const params = new URLSearchParams({
-    latitude: String(place.latitude),
-    longitude: String(place.longitude),
+    latitude: String(latitude),
+    longitude: String(longitude),
     current: 'temperature_2m,weather_code,wind_speed_10m',
     daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code',
     timezone: 'auto',
@@ -269,7 +315,7 @@ export default function WeatherPage() {
 
   function loadReports() {
     setLoading(true);
-    listWeatherReports({ limit: 500 })
+    listWeatherReports({ limit: 10000 })
       .then(setReports)
       .catch((error) => toast.error(error.message || 'Weather reports failed to load.'))
       .finally(() => setLoading(false));
@@ -294,27 +340,53 @@ export default function WeatherPage() {
     setSearching(true);
     setLiveReport(null);
     setLiveHistory([]);
+    setResults([]);
+    const normalizedTerm = normalizePlaceName(term);
+    const savedMatches = reports
+      .filter((report) => report.latitude != null && report.longitude != null
+        && Number.isFinite(Number(report.latitude)) && Number.isFinite(Number(report.longitude)))
+      .filter((report) => {
+        const placeName = normalizePlaceName(`${report.city} ${report.state || ''} ${report.country || ''}`);
+        return placeName.includes(normalizedTerm) || normalizedTerm.split(' ').every((word) => placeName.includes(word));
+      })
+      .map(reportToPlace);
     try {
       const params = new URLSearchParams({ name: term, count: '12', language: 'en', format: 'json' });
-      const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
-      if (!response.ok) throw new Error('City or district search failed.');
-      const data = await response.json();
-      const places = data.results || [];
-      setResults(places);
-      if (!places.length) toast.error('No city/district found. Try district + state, for example: Puri Odisha.');
+      let places = [];
+      try {
+        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+        if (!response.ok) throw new Error('City or district search failed.');
+        const data = await response.json();
+        places = data.results || [];
+      } catch (error) {
+        if (!savedMatches.length) throw error;
+      }
+
+      const seen = new Set();
+      const combined = [...savedMatches, ...places].filter((place) => {
+        const key = `${Number(place.latitude).toFixed(3)}:${Number(place.longitude).toFixed(3)}`;
+        if (!Number.isFinite(Number(place.latitude)) || !Number.isFinite(Number(place.longitude)) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 12);
+      setResults(combined);
+      if (!combined.length) toast.error('No matching place found. Try a city name, or district + state, such as Puri Odisha.');
     } catch (error) {
-      toast.error(error.message || 'City search failed.');
+      toast.error(savedMatches.length ? 'Could not search right now. Choose a saved location below.' : error.message || 'City search failed.');
+      setResults(savedMatches);
     } finally {
       setSearching(false);
     }
   }
 
   async function selectPlace(place) {
+    if (searching) return;
     setSearching(true);
     try {
       const { report, history } = await fetchForecastForPlace(place);
       setLiveReport(report);
       setLiveHistory(history);
+      setQuery(cityLabel(place));
       setResults([]);
       toast.success(`Live 5-day weather loaded for ${cityLabel(place)}.`);
     } catch (error) {
@@ -400,10 +472,15 @@ export default function WeatherPage() {
               <label className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-brand-red"
-                  placeholder="Search district/city: Ganjam Odisha, Jaipur, London..."
+                  className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-10 pr-3 text-sm font-semibold outline-none transition focus:border-brand-red focus:ring-2 focus:ring-red-100"
+                  placeholder="City or district: Puri Odisha, Jaipur, London"
+                  aria-label="Search city or district weather"
+                  autoComplete="off"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setResults([]);
+                  }}
                 />
               </label>
               <button className="btn-primary justify-center" disabled={searching}>
@@ -421,25 +498,33 @@ export default function WeatherPage() {
                 <Download size={16} /> PDF India report
               </button>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Popular locations</p>
+              <div className="mt-2 flex flex-wrap gap-2">
               {QUICK_DISTRICTS.map((item) => (
-                <button key={item} className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-bold hover:border-brand-red hover:text-brand-red" onClick={() => searchCity(null, item)}>
+                <button key={item} type="button" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50" disabled={searching} onClick={() => { setQuery(item); searchCity(null, item); }}>
                   {item}
                 </button>
               ))}
+              </div>
             </div>
             {results.length ? (
-              <div className="mt-4 grid gap-2">
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3" aria-live="polite">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Choose a matching location</p>
+                <div className="grid gap-2">
                 {results.map((place) => (
                   <button
-                    key={`${place.id}-${place.latitude}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 text-left text-sm hover:border-brand-red"
+                    key={`${place.id || cityLabel(place)}-${place.latitude}-${place.longitude}`}
+                    type="button"
+                    className="flex min-h-12 items-center justify-between gap-3 rounded-md border border-gray-200 bg-white p-3 text-left text-sm transition hover:border-brand-red hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                    disabled={searching}
                     onClick={() => selectPlace(place)}
                   >
                     <span className="flex min-w-0 items-center gap-2 font-bold"><MapPin size={16} className="shrink-0 text-brand-red" /> {cityLabel(place)}</span>
-                    <Globe2 size={16} className="shrink-0 text-gray-400" />
+                    {searching ? <RefreshCw size={16} className="shrink-0 animate-spin text-brand-red" /> : <Globe2 size={16} className="shrink-0 text-gray-400" />}
                   </button>
                 ))}
+                </div>
               </div>
             ) : null}
           </div>

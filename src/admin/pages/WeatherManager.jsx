@@ -53,11 +53,12 @@ export default function WeatherManager() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [lastRun, setLastRun] = useState(null);
+  const [generationProgress, setGenerationProgress] = useState(null);
   const [stateFilter, setStateFilter] = useState('all');
 
   function loadReports() {
     setLoading(true);
-    listWeatherReports({ limit: 700 })
+    listWeatherReports({ limit: 10000 })
       .then(setReports)
       .catch((error) => toast.error(error.message || 'Weather reports failed to load.'))
       .finally(() => setLoading(false));
@@ -68,14 +69,15 @@ export default function WeatherManager() {
   async function generateToday() {
     setGenerating(true);
     try {
-      let offset = 0;
+      let offset = Number(lastRun?.nextOffset || 0);
       let totalSaved = 0;
       let totalLocations = 0;
       let failed = [];
       let hasMore = true;
       let batches = 0;
+      setGenerationProgress({ completed: offset, total: 0 });
 
-      while (hasMore && batches < 15) {
+      while (hasMore && batches < 100) {
         const response = await fetch(`/.netlify/functions/generate-weather?offset=${offset}&limit=20`, { method: 'POST' }).catch(() => {
           throw new Error('Weather function is not reachable. Redeploy Netlify after pushing latest code.');
         });
@@ -94,19 +96,22 @@ export default function WeatherManager() {
         hasMore = Boolean(data.hasMore);
         offset = Number(data.nextOffset || offset + 20);
         batches += 1;
+        setGenerationProgress({ completed: offset, total: totalLocations });
         setLastRun({ ...data, saved: totalSaved, failed, totalLocations, batches });
       }
 
       if (hasMore) {
-        toast.error(`Weather partly updated: ${totalSaved} rows saved. Click Update now again to finish remaining locations.`);
+        toast.error(`Updated ${offset} of ${totalLocations} locations. Click Update now again to continue.`);
       } else {
         toast.success(`Weather report saved: ${totalSaved} rows for ${totalLocations || 'all'} locations.`);
+        setLastRun(null);
       }
       loadReports();
     } catch (error) {
       toast.error(error.message || 'Weather generation failed.');
     } finally {
       setGenerating(false);
+      setGenerationProgress(null);
     }
   }
 
@@ -164,6 +169,12 @@ export default function WeatherManager() {
           </div>
         </div>
       </div>
+
+      {generating && generationProgress ? (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900" role="status" aria-live="polite">
+          Updating locations: {generationProgress.completed}{generationProgress.total ? ` of ${generationProgress.total}` : ''}
+        </div>
+      ) : null}
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <StatCard label="Latest Date" value={formatDate(stats.latestDate)} note="Newest saved report" icon={CloudSun} />

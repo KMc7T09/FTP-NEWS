@@ -541,14 +541,23 @@ export async function listPageVisits({ limit = 200 } = {}) {
 
 export async function listWeatherReports({ reportDate = '', limit = 100 } = {}) {
   const client = requireSupabase();
-  let query = client
-    .from('daily_weather_reports')
-    .select('*')
-    .order('report_date', { ascending: false })
-    .order('city', { ascending: true })
-    .limit(limit);
-  if (reportDate) query = query.eq('report_date', reportDate);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data || []).map(mapWeatherReport);
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 100, 10000));
+  const pageSize = 1000;
+  const rows = [];
+
+  for (let offset = 0; offset < safeLimit; offset += pageSize) {
+    let query = client
+      .from('daily_weather_reports')
+      .select('*')
+      .order('report_date', { ascending: false })
+      .order('city', { ascending: true })
+      .range(offset, Math.min(offset + pageSize, safeLimit) - 1);
+    if (reportDate) query = query.eq('report_date', reportDate);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return rows.map(mapWeatherReport);
 }

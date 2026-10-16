@@ -293,12 +293,46 @@ async function saveReports(reports) {
   return saved;
 }
 
+exports.generateAllActiveWeather = async () => {
+  let offset = 0;
+  let saved = 0;
+  let failed = [];
+  let totalLocations = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const result = await fetchAllCityWeather({ offset, limit: 20 });
+    totalLocations = result.totalLocations;
+    failed = failed.concat(result.failed);
+    if (result.reports.length) saved += (await saveReports(result.reports)).length || result.reports.length;
+    offset = result.nextOffset;
+    hasMore = result.hasMore;
+  }
+
+  return { saved, failed, totalLocations };
+};
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
 
   try {
     if (typeof fetch !== 'function') {
       throw new Error('Netlify function runtime does not support fetch. Set Node.js runtime to 18 or newer.');
+    }
+
+    if (event.httpMethod !== 'POST') {
+      const { url, serviceKey } = getSupabaseConfig();
+      const siteUrl = normalizeSupabaseUrl(process.env.URL || process.env.DEPLOY_PRIME_URL);
+      if (!siteUrl || !serviceKey) throw new Error('Scheduled weather job could not start: Netlify URL or SUPABASE_SERVICE_ROLE_KEY is missing.');
+      const response = await fetchWithTimeout(`${siteUrl}/.netlify/functions/generate-weather-background`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${serviceKey}` },
+      }, 'Scheduled weather background job enqueue');
+      if (response.status !== 202) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`Scheduled weather background job returned ${response.status}. ${text}`);
+      }
+      return json(202, { ok: true, queued: true, supabaseHost: safeHost(url) });
     }
 
     const offset = Number(event.queryStringParameters?.offset || 0);
