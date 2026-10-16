@@ -55,6 +55,10 @@ export function AuthProvider({ children }) {
       saved = await withTimeout(getProfile(user.id), 'Profile loading took too long.');
     } catch (error) {
       console.warn('Profile read failed:', error);
+      setAuthError(error.message || 'Could not load your profile.');
+      const fallback = userToProfile(user);
+      setProfile(fallback);
+      return fallback;
     }
     try {
       if (!saved) saved = await withTimeout(upsertProfile(userToProfile(user)), 'Profile setup took too long.');

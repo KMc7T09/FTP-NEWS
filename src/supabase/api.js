@@ -10,6 +10,11 @@ function isUuid(value = '') {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+function isMissingOptionalProfileColumn(error) {
+  const message = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+  return /phone_number|whatsapp_opt_in/i.test(message);
+}
+
 export async function getProfile(userId) {
   const client = requireSupabase();
   const { data, error } = await client.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -37,7 +42,7 @@ export async function upsertProfile(profile) {
   };
 
   let result = await client.from('profiles').update(baseRow).eq('id', id).select('*').maybeSingle();
-  if (result.error && String(result.error.message).includes('phone_number')) {
+  if (result.error && isMissingOptionalProfileColumn(result.error)) {
     const { phone_number, whatsapp_opt_in, ...fallbackBaseRow } = baseRow;
     result = await client.from('profiles').update(fallbackBaseRow).eq('id', id).select('*').maybeSingle();
   }
@@ -46,7 +51,7 @@ export async function upsertProfile(profile) {
   if (!result.error && result.data) return mapProfile(result.data);
 
   let createResult = await client.from('profiles').insert(insertRow).select('*').single();
-  if (createResult.error && String(createResult.error.message).includes('phone_number')) {
+  if (createResult.error && isMissingOptionalProfileColumn(createResult.error)) {
     const { phone_number, whatsapp_opt_in, ...fallbackInsertRow } = insertRow;
     createResult = await client.from('profiles').insert(fallbackInsertRow).select('*').single();
   }

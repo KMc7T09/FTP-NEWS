@@ -179,7 +179,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
   win.document.close();
 }
 
-function WeatherCard({ report, featured = false, history = [] }) {
+function WeatherCard({ report, featured = false, history = [], logoURL = '' }) {
   const trend = history.length ? history : [report];
   return (
     <article className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${featured ? 'lg:grid lg:grid-cols-[0.85fr_1.15fr]' : ''}`}>
@@ -217,7 +217,7 @@ function WeatherCard({ report, featured = false, history = [] }) {
               subtitle: `${report.state || report.country || 'Live weather'} | ${formatReportDate(report.reportDate)}`,
               reports: trend,
               locationNote: report.pinCode ? `Detected PIN code: ${report.pinCode}` : '',
-              logoURL: settings.logoURL,
+              logoURL,
             })}
           >
             <span className="flex items-center gap-2"><Download size={17} /> PDF report</span>
@@ -544,7 +544,7 @@ export default function WeatherPage() {
             </div>
             <Activity className="text-brand-red" />
           </div>
-          <WeatherCard report={featured} featured history={featuredHistory} />
+          <WeatherCard report={featured} featured history={featuredHistory} logoURL={settings.logoURL} />
         </section>
       ) : null}
 
@@ -566,6 +566,7 @@ export default function WeatherPage() {
                 key={report.id}
                 report={report}
                 history={fiveDaySaved.filter((item) => item.city === report.city).slice(0, 5)}
+                logoURL={settings.logoURL}
               />
             ))}
           </div>
