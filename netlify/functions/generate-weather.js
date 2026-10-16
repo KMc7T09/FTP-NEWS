@@ -200,27 +200,19 @@ async function fetchAllCityWeather({ offset = 0, limit = 80 } = {}) {
   const failed = [];
   const allLocations = await loadWeatherLocations();
   const safeOffset = Math.max(0, Number(offset) || 0);
-  const safeLimit = Math.min(Math.max(1, Number(limit) || 80), 120);
+  const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 20);
   const locations = allLocations.slice(safeOffset, safeOffset + safeLimit);
-  const batchSize = 25;
+  const batchSize = 10;
 
   for (let index = 0; index < locations.length; index += batchSize) {
     const batch = locations.slice(index, index + batchSize);
     try {
       reports.push(...(await fetchWeatherBatch(batch)));
-      await wait(120);
     } catch (error) {
-      failed.push(error.message || `Weather batch failed from ${batch[0]?.city || 'unknown'}`);
-      await wait(250);
-      for (const city of batch) {
-        try {
-          reports.push(...(await fetchWeatherBatch([city])));
-          await wait(120);
-        } catch (cityError) {
-          failed.push(cityError.message || `Weather failed for ${city.city}`);
-        }
-      }
+      const reason = error.message || 'Weather API batch failed';
+      failed.push(...batch.map((city) => `${city.city}: ${reason}`));
     }
+    if (index + batchSize < locations.length) await wait(120);
   }
 
   return {

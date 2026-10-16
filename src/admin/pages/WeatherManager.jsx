@@ -76,7 +76,7 @@ export default function WeatherManager() {
       let batches = 0;
 
       while (hasMore && batches < 15) {
-        const response = await fetch(`/.netlify/functions/generate-weather?offset=${offset}&limit=80`, { method: 'POST' }).catch(() => {
+        const response = await fetch(`/.netlify/functions/generate-weather?offset=${offset}&limit=20`, { method: 'POST' }).catch(() => {
           throw new Error('Weather function is not reachable. Redeploy Netlify after pushing latest code.');
         });
         const text = await response.text();
@@ -92,7 +92,7 @@ export default function WeatherManager() {
         totalLocations = Number(data.totalLocations || totalLocations);
         failed = failed.concat(data.failed || []);
         hasMore = Boolean(data.hasMore);
-        offset = Number(data.nextOffset || offset + 80);
+        offset = Number(data.nextOffset || offset + 20);
         batches += 1;
         setLastRun({ ...data, saved: totalSaved, failed, totalLocations, batches });
       }
