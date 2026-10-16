@@ -61,6 +61,12 @@ function formatReportDate(value, compact = false) {
   ).format(new Date(`${value}T00:00:00+05:30`));
 }
 
+function observationLabel(value) {
+  if (!value) return 'Date unavailable';
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  return value === today ? 'Today' : 'Past observation';
+}
+
 function cityLabel(place = {}) {
   return [place.name || place.city, place.admin2, place.admin1 || place.state, place.country].filter(Boolean).join(', ');
 }
@@ -300,8 +306,8 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
 function WeatherCard({ report, featured = false, history = [], logoURL = '' }) {
   const trend = history.length ? history : [report];
   return (
-    <article className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${featured ? 'lg:grid lg:grid-cols-[0.85fr_1.15fr]' : ''}`}>
-      <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-red-950 p-5 text-white">
+    <article className={`overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm ${featured ? 'lg:grid lg:grid-cols-[0.85fr_1.15fr]' : ''}`}>
+      <div className="border-l-4 border-brand-red bg-gray-950 p-5 text-white sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-red-200">{[report.district, report.state || report.country].filter(Boolean).join(' · ') || 'Weather'}</p>
@@ -346,12 +352,14 @@ function WeatherCard({ report, featured = false, history = [], logoURL = '' }) {
           {trend.length > 1 ? (
             <div className="mt-4">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-gray-500">Last 5 days</p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid auto-cols-[minmax(92px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1">
                 {trend.slice(0, 5).map((item) => (
-                  <div key={`${item.reportDate}-${item.city}`} className="rounded-lg bg-gray-50 p-2 text-center">
+                  <div key={`${item.reportDate}-${item.city}`} className="min-w-0 rounded-md bg-gray-50 p-2 text-center">
                     <p className="text-[11px] font-bold text-gray-500">{formatReportDate(item.reportDate, true)}</p>
-                    <p className="mt-1 text-sm font-black">{item.temperatureMax ?? '-'} C</p>
-                    <p className="text-[11px] text-blue-700">{item.rainfall ?? 0} mm</p>
+                    <p className="mt-1 text-[9px] font-extrabold uppercase tracking-wide text-gray-400">{observationLabel(item.reportDate)}</p>
+                    <p className="mt-1 text-sm font-black">{item.temperatureMax ?? '-'}°</p>
+                    <p className="text-[10px] font-semibold leading-4 text-gray-600">{WEATHER_TEXT.get(Number(item.weatherCode)) || 'Condition unavailable'}</p>
+                    <p className="mt-1 text-[11px] text-blue-700">{item.rainfall ?? 0} mm rain</p>
                   </div>
                 ))}
               </div>
@@ -566,25 +574,26 @@ export default function WeatherPage() {
   }
 
   return (
-    <main className="section-shell bg-gradient-to-b from-white via-slate-50 to-white">
-      <section className="mb-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl shadow-gray-200/70">
+    <main className="bg-[#f5f6f7] py-6 sm:py-8">
+      <div className="container-page">
+      <section className="mb-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="bg-[radial-gradient(circle_at_top_left,#dc2626,transparent_32%),linear-gradient(135deg,#020617,#111827_55%,#450a0a)] p-6 text-white sm:p-8">
+          <div className="border-b-4 border-brand-red bg-gray-950 p-6 text-white sm:p-8 lg:border-b-0 lg:border-r-4">
             <p className="section-kicker text-red-200">All India District Weather</p>
             <h1 className="mt-3 text-4xl font-black tracking-normal sm:text-5xl">Weather Intelligence</h1>
             <p className="mt-4 max-w-xl text-sm leading-6 text-gray-200">
               Search any Indian district, any city, or an international place. See current weather, PIN-aware location weather, and the last 5 days trend.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-white/10 p-3">
+              <div className="rounded-md bg-white/10 p-3">
                 <p className="text-xs text-gray-300">Saved today</p>
                 <p className="mt-1 text-2xl font-black">{latestReports.length}</p>
               </div>
-              <div className="rounded-2xl bg-white/10 p-3">
+              <div className="rounded-md bg-white/10 p-3">
                 <p className="text-xs text-gray-300">History window</p>
                 <p className="mt-1 text-2xl font-black">5 days</p>
               </div>
-              <div className="rounded-2xl bg-white/10 p-3">
+              <div className="rounded-md bg-white/10 p-3">
                 <p className="text-xs text-gray-300">PDF export</p>
                 <p className="mt-1 text-2xl font-black">FTP</p>
               </div>
@@ -659,7 +668,8 @@ export default function WeatherPage() {
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="section-kicker">{liveReport ? 'Live searched report' : 'Featured saved report'}</p>
-              <h2 className="text-2xl font-extrabold text-gray-950">Current + last 5 days</h2>
+              <h2 className="text-2xl font-extrabold text-gray-950">Current + recent daily observations</h2>
+              <p className="mt-1 text-sm text-gray-600">Each date shows its recorded condition, daily high, and rainfall. Past days are observations, not forecasts.</p>
             </div>
             <Activity className="text-brand-red" />
           </div>
@@ -697,6 +707,7 @@ export default function WeatherPage() {
           <p className="mt-2 text-sm text-gray-600">Search any district live above, or run weather generation from Admin Panel.</p>
         </section>
       )}
+      </div>
     </main>
   );
 }

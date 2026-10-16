@@ -1,3 +1,4 @@
+import { ArrowUpRight, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useSettings from '../../hooks/useSettings.js';
 
@@ -9,9 +10,9 @@ export default function Footer() {
 
   return (
     <footer className="mt-14 bg-gray-950 text-white">
-      <div className="container-page grid gap-8 py-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div className="container-page grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr] lg:py-12">
         <div>
-          <h2 className="font-serif text-3xl font-bold">FTP</h2>
+          <h2 className="font-serif text-4xl font-bold">FTP</h2>
           <p className="mt-1 text-xs font-extrabold uppercase tracking-[0.2em] text-red-200">Fresh Take Politics</p>
           <p className="mt-3 max-w-md text-sm leading-6 text-gray-300">{settings.footerText}</p>
         </div>
@@ -32,7 +33,7 @@ export default function Footer() {
             <Link to="/contact" className="hover:text-white">Contact</Link>
             <Link to="/founder" className="hover:text-white">Founder</Link>
             <Link to="/team" className="hover:text-white">Team</Link>
-            <span>{settings.contactEmail}</span>
+            {settings.contactEmail && <a className="inline-flex items-center gap-2 hover:text-white" href={`mailto:${settings.contactEmail}`}><Mail size={14} /> {settings.contactEmail}</a>}
           </div>
         </div>
         <div>
@@ -40,8 +41,8 @@ export default function Footer() {
           <div className="mt-3 grid gap-2 text-sm text-gray-300">
             {socials.length ? (
               socials.map(([name, url]) => (
-                <a key={name} href={url} target="_blank" rel="noreferrer" className="capitalize hover:text-white">
-                  {name}
+                  <a key={name} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 capitalize hover:text-white">
+                    {name} <ArrowUpRight size={13} />
                 </a>
               ))
             ) : (

@@ -243,13 +243,18 @@ export default function ArticlePage() {
   }
 
   async function shareArticle() {
-    const data = { title: article.title, url: window.location.href };
-    if (navigator.share) await navigator.share(data);
-    else await navigator.clipboard?.writeText(window.location.href);
-    getRealArticleForAction()
-      .then((realArticle) => recordShare(realArticle.id, realArticle.shares || 0))
-      .catch(() => {});
-    toast.success('Share link ready.');
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: article.title, url });
+      else if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(url);
+      else throw new Error('Sharing is unavailable in this browser. Copy the page URL from the address bar.');
+      getRealArticleForAction()
+        .then((realArticle) => recordShare(realArticle.id, realArticle.shares || 0))
+        .catch(() => {});
+      toast.success(navigator.share ? 'Article shared.' : 'Article link copied.');
+    } catch (error) {
+      if (error.name !== 'AbortError') toast.error(error.message || 'Could not share this article.');
+    }
   }
 
   function shareTo(platform) {
@@ -495,7 +500,7 @@ export default function ArticlePage() {
                 {article.updatedAt && article.updatedAt !== article.publishedAt ? <span>Updated {formatDate(article.updatedAt)}</span> : null}
               </div>
               <h1 className="article-title">{translatedTitle || article.title}</h1>
-              <p className="article-deck">{translatedExcerpt || article.excerpt}</p>
+              {(translatedExcerpt || article.excerpt) && <p className="article-deck">{translatedExcerpt || article.excerpt}</p>}
             </header>
             {article.featuredImageURL ? (
               <figure className="article-cover">
@@ -640,8 +645,8 @@ export default function ArticlePage() {
                 {article.tags.map((tag) => <span key={tag} className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">#{tag}</span>)}
               </div>
             ) : null}
-            <div className="mt-8 rounded-lg border border-gray-200 bg-white p-4">
-              <p className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Share this story</p>
+            <section aria-labelledby="article-share-title" className="mt-8 rounded-lg border border-gray-200 bg-white p-4">
+              <h2 id="article-share-title" className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Share this story</h2>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button className="btn-secondary" onClick={() => shareTo('whatsapp')}>WhatsApp</button>
                 <button className="btn-secondary" onClick={() => shareTo('facebook')}>Facebook</button>
@@ -649,11 +654,11 @@ export default function ArticlePage() {
                 <button className="btn-secondary" onClick={shareArticle}><Copy size={16} /> Copy Link</button>
                 <Link to="/contact" className="btn-secondary"><Flag size={16} /> Report Correction</Link>
               </div>
-            </div>
+            </section>
             <AdSlot label="Article Bottom Ad Slot" position="article-bottom" className="my-8" />
 
-            <section id="comments" className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">
-              <h2 className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
+            <section id="comments" aria-labelledby="comments-title" className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-6">
+              <h2 id="comments-title" className="mb-4 flex items-center gap-2 text-2xl font-extrabold">
                 Comments <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">{commentCount}</span>
               </h2>
               <form onSubmit={submitComment} className="mb-6 rounded-lg border border-gray-200 bg-white p-4">

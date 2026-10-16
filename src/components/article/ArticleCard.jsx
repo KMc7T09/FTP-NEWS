@@ -42,24 +42,25 @@ export default function ArticleCard({ article, large = false, compact = false, s
 
   return (
     <article className={`news-card group overflow-hidden ${large ? 'shadow-[0_24px_70px_rgba(15,23,42,0.10)]' : ''}`}>
-      <Link to={articlePath} className={`relative block overflow-hidden bg-gray-100 ${large ? 'aspect-[16/10] sm:aspect-[16/9]' : ''} ${compact ? 'hidden sm:block' : ''}`}>
+      <div className={large ? 'grid min-h-full lg:grid-cols-[1.08fr_0.92fr]' : ''}>
+      <Link to={articlePath} className={`relative block overflow-hidden bg-gray-100 ${large ? 'min-h-64 aspect-[16/9] lg:aspect-auto' : ''} ${compact ? 'hidden sm:block' : ''}`}>
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
-          className={`h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03] ${!large ? 'min-h-52' : ''} ${compact ? 'sm:min-h-36' : ''}`}
+          className={`h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03] ${large ? 'absolute inset-0 min-h-full' : 'min-h-52'} ${compact ? 'sm:min-h-36' : ''}`}
           loading={large ? 'eager' : 'lazy'}
         />
         <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-red shadow-sm">
           {article.categoryName || 'News'}
         </span>
       </Link>
-      <div className={`flex flex-col gap-3 ${large ? 'bg-white p-5 sm:p-7' : compact ? 'p-4' : 'p-5'}`}>
+      <div className={`flex flex-col gap-3 ${large ? 'justify-center bg-white p-5 sm:p-7 lg:p-8' : compact ? 'p-4' : 'p-5'}`}>
         <div className="flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-wide text-brand-red">
           <Link to={`/category/${article.categorySlug || article.categoryId}`}>{article.categoryName || 'News'}</Link>
           <span className="text-gray-400">{formatDate(article.publishedAt)}</span>
         </div>
         <Link to={articlePath}>
-          <h2 className={`${large ? 'text-2xl sm:text-3xl' : compact ? 'text-lg' : 'text-xl'} font-extrabold leading-tight text-gray-950 hover:text-brand-blue ${large ? 'line-clamp-3' : ''}`}>
+          <h2 className={`${large ? 'text-2xl sm:text-3xl' : compact ? 'text-lg' : 'text-xl'} font-extrabold leading-tight text-gray-950 hover:text-brand-blue ${large ? 'line-clamp-4' : 'line-clamp-3'}`}>
             {article.title}
           </h2>
         </Link>
@@ -80,6 +81,7 @@ export default function ArticleCard({ article, large = false, compact = false, s
             </span>
           </div>
         </div>
+      </div>
       </div>
     </article>
   );

@@ -5,7 +5,11 @@
 
 :root {
   color-scheme: light;
-  background: #f4f1ea;
+  background: #f5f6f7;
+  --ftp-ink: #101820;
+  --ftp-red: #c51c25;
+  --ftp-line: #dfe3e8;
+  --ftp-muted: #66717d;
 }
 
 html {
@@ -15,10 +19,21 @@ html {
 body {
   margin: 0;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color: #111827;
-  background:
-    radial-gradient(circle at top left, rgba(215, 25, 32, 0.06), transparent 26rem),
-    linear-gradient(180deg, #fbfaf7 0%, #f4f1ea 46%, #eef1f5 100%);
+  color: var(--ftp-ink);
+  background: #f5f6f7;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(197, 28, 37, 0.55);
+  outline-offset: 3px;
 }
 
 img {
@@ -37,7 +52,7 @@ img {
 }
 
 .news-card {
-  @apply bg-white/95 border border-gray-200 rounded-lg shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft;
+  @apply rounded-lg border border-gray-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-soft;
 }
 
 .section-kicker {
@@ -57,7 +72,7 @@ img {
 }
 
 .premium-band {
-  @apply border-y border-gray-200 bg-[#fbfaf7];
+  @apply border-y border-gray-200 bg-white;
 }
 
 .trust-hero {
@@ -326,6 +341,16 @@ img {
 
 .ticker-track:hover {
   animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @keyframes ftpTicker {

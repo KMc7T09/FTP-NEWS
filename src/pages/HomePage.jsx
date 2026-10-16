@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, BarChart3, Clock, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, BarChart3, Clock, CloudSun, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useFeaturedArticles, usePublishedArticles } from '../hooks/useArticles.js';
+import { usePublishedArticles } from '../hooks/useArticles.js';
 import ArticleCard from '../components/article/ArticleCard.jsx';
 import TrendingSidebar from '../components/article/TrendingSidebar.jsx';
 import AdSlot from '../components/common/AdSlot.jsx';
@@ -18,8 +18,9 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
   const categories = staticCategories;
-  const { data: latest, loading } = usePublishedArticles(12);
-  const { data: featured } = useFeaturedArticles();
+  const { data: latest, loading } = usePublishedArticles(20);
+  const featured = latest.filter((article) => article.isFeatured).slice(0, 6);
+  const trending = latest.filter((article) => article.isTrending).slice(0, 8);
   const [articleStats, setArticleStats] = useState({});
   const hero = featured[0] || latest[0];
   const secondary = latest.filter((item) => item.id !== hero?.id).slice(0, 2);
@@ -27,8 +28,8 @@ export default function HomePage() {
   const politics = byCategory(['politics']);
   const indiaOdisha = byCategory(['india', 'odisha']);
   const opinion = byCategory(['opinion']);
-  const factCheck = byCategory(['fact-check']);
-  const editorsPick = featured.slice(1, 4).length ? featured.slice(1, 4) : latest.slice(3, 6);
+  const factCheck = byCategory(['fact-check', 'factcheck']);
+  const editorsPick = featured.slice(1, 4);
   const statIds = useMemo(() => [...new Set([...latest, ...featured].map((article) => article.id).filter(Boolean))], [latest, featured]);
 
   useEffect(() => {
@@ -58,15 +59,15 @@ export default function HomePage() {
       />
       <BreakingTicker articles={latest} />
       <section className="border-b border-gray-200 bg-white">
-        <div className="container-page grid gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_330px] lg:py-10">
+        <div className="container-page grid gap-8 py-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:py-9">
           <div className="space-y-6">
-            <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-gray-200 pb-5">
               <div>
                 <p className="section-kicker">Fresh Take Politics</p>
-                <h1 className="mt-2 text-4xl font-extrabold leading-tight text-gray-950 sm:text-6xl">THE FTP NEWS</h1>
+                <h1 className="mt-2 font-serif text-4xl font-bold leading-tight text-gray-950 sm:text-5xl">THE FTP NEWS</h1>
               </div>
-              <p className="max-w-2xl text-base leading-7 text-gray-600">
-                Fresh, clear, and independent political news with verified context for readers across India.
+              <p className="max-w-md text-sm leading-6 text-gray-600">
+                Independent reporting, clear context, and verified updates from Odisha and across India.
               </p>
             </div>
             <form onSubmit={submit} className="flex overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
@@ -76,10 +77,11 @@ export default function HomePage() {
               <input className="w-full bg-transparent py-3 pr-4 outline-none" placeholder="Search title, category, tags, or story text" value={search} onChange={(event) => setSearch(event.target.value)} />
               <button className="bg-brand-red px-4 text-sm font-bold text-white sm:px-5">Search</button>
             </form>
-            <div className="grid gap-5 xl:grid-cols-[1.7fr_0.8fr]">
-              {hero ? <ArticleCard article={hero} large priority stats={articleStats[hero.id]} /> : loading ? <ArticleSkeleton /> : null}
-              <div className="grid gap-5">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(250px,0.8fr)]">
+              {hero ? <ArticleCard article={hero} large priority stats={articleStats[hero.id]} /> : loading ? <ArticleSkeleton /> : <div className="news-card p-6 text-sm text-gray-600">No published stories yet.</div>}
+              <div className="grid content-start gap-5">
                 {secondary.map((article) => <ArticleCard key={article.id} article={article} compact stats={articleStats[article.id]} />)}
+                {!loading && !secondary.length && <p className="rounded-lg border border-dashed border-gray-300 p-5 text-sm text-gray-500">More top stories will appear here as they are published.</p>}
               </div>
             </div>
           </div>
@@ -111,7 +113,14 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            <TrendingSidebar />
+            <TrendingSidebar articles={trending} />
+            <Link to="/weather" className="group flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-4 transition hover:border-brand-red">
+              <span>
+                <span className="block text-xs font-extrabold uppercase tracking-wide text-gray-500">Weather desk</span>
+                <span className="mt-1 block font-extrabold text-gray-950 group-hover:text-brand-red">Weather Intelligence</span>
+              </span>
+              <CloudSun className="shrink-0 text-brand-red" size={22} />
+            </Link>
             <NewsletterBox />
             <FollowBox />
           </div>
@@ -122,7 +131,7 @@ export default function HomePage() {
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="section-kicker">Latest Desk</p>
-            <h1 className="mt-2 text-2xl font-extrabold text-gray-950 sm:text-3xl">Latest News</h1>
+            <h2 className="mt-2 text-2xl font-extrabold text-gray-950 sm:text-3xl">Latest News</h2>
           </div>
           <Link to="/search" className="btn-secondary">
             View all <ArrowRight size={16} />
@@ -139,7 +148,7 @@ export default function HomePage() {
         kicker="Political Desk"
         title="Politics"
         description="Sharp political updates, context, and public issue reporting."
-        articles={politics.length ? politics : latest.slice(0, 3)}
+        articles={politics}
         to="/category/politics"
         articleStats={articleStats}
       />
@@ -149,7 +158,7 @@ export default function HomePage() {
           kicker="Ground Reports"
           title="Odisha / India"
           description="Stories from Odisha and across India with clear local context."
-          articles={indiaOdisha.length ? indiaOdisha : latest.slice(2, 5)}
+          articles={indiaOdisha}
           to="/category/odisha"
           articleStats={articleStats}
         />
@@ -159,7 +168,7 @@ export default function HomePage() {
         kicker="Views"
         title="Opinion"
         description="Youth-focused commentary, explainers, and public voice."
-        articles={opinion.length ? opinion : latest.slice(4, 7)}
+        articles={opinion}
         to="/category/opinion"
         articleStats={articleStats}
       />
@@ -169,7 +178,7 @@ export default function HomePage() {
           kicker="Verification Desk"
           title="Fact Check"
           description="Claims, context, and verification for public debate."
-          articles={factCheck.length ? factCheck : latest.slice(5, 8)}
+          articles={factCheck}
           to="/category/fact-check"
           articleStats={articleStats}
         />
