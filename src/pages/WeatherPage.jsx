@@ -53,6 +53,10 @@ function cityLabel(place = {}) {
   return [place.name || place.city, place.admin2, place.admin1 || place.state, place.country].filter(Boolean).join(', ');
 }
 
+function postOfficeAreaName(value = '') {
+  return String(value).replace(/\s+(?:S\.?O|B\.?O|H\.?O)\.?$/i, '').trim();
+}
+
 function weatherSummary(report) {
   if (report.summary) return report.summary;
   const label = WEATHER_TEXT.get(report.weatherCode) || 'Weather update available';
@@ -94,6 +98,34 @@ async function geocodePlaces(name, countryCode = '') {
 }
 
 async function geocodeIndianPin(pinCode) {
+  try {
+    const response = await fetch(`https://api.pincodeapi.in/api/v1/pincode/${pinCode}`);
+    if (response.ok) {
+      const payload = await response.json();
+      const offices = payload?.success ? (payload.data?.post_offices || []) : [];
+      const areaPlaces = offices
+        .filter((office) => office.office_name && office.district && office.state
+          && office.latitude != null && office.longitude != null)
+        .map((office) => ({
+          id: `pin-${pinCode}-${office.id || office.office_slug || office.office_name}`,
+          name: postOfficeAreaName(office.office_name),
+          admin1: office.state,
+          admin2: office.district,
+          country: 'India',
+          latitude: Number(office.latitude),
+          longitude: Number(office.longitude),
+          pinCode,
+          officeType: office.office_type || '',
+        }))
+        .filter((place) => Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+          && Math.abs(place.latitude) <= 90 && Math.abs(place.longitude) <= 180)
+        .sort((a, b) => Number(/(?:HO|SO)/i.test(b.officeType)) - Number(/(?:HO|SO)/i.test(a.officeType)));
+      if (areaPlaces.length) return areaPlaces;
+    }
+  } catch {
+    // Fall back to the older postal lookup and geocoder if the coordinate dataset is unavailable.
+  }
+
   let offices = [];
   try {
     const response = await fetch(`https://api.postalpincode.in/pincode/${pinCode}`);
@@ -163,7 +195,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
     <tr>
       <td>${escapePdfText(formatReportDate(report.reportDate, true))}</td>
       <td><strong>${escapePdfText(report.city)}</strong></td>
-      <td>${escapePdfText(report.state || '-')}</td>
+      <td>${escapePdfText([report.district, report.state].filter(Boolean).join(', ') || '-')}</td>
       <td>${escapePdfText(report.temperatureCurrent ?? '-')}°</td>
       <td>${escapePdfText(report.temperatureMax ?? '-')}°</td>
       <td>${escapePdfText(report.temperatureMin ?? '-')}°</td>
@@ -260,7 +292,7 @@ function WeatherCard({ report, featured = false, history = [], logoURL = '' }) {
       <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-red-950 p-5 text-white">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-red-200">{report.state || report.country || 'Weather'}</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-red-200">{[report.district, report.state || report.country].filter(Boolean).join(' · ') || 'Weather'}</p>
             <h2 className="mt-2 text-2xl font-extrabold">{report.city}</h2>
             {report.pinCode ? <p className="mt-1 text-xs font-bold text-red-100">PIN: {report.pinCode}</p> : null}
             <p className="mt-2 text-xs font-semibold text-gray-300">{formatReportDate(report.reportDate)}</p>
@@ -363,6 +395,7 @@ async function fetchForecastForPlace(place) {
     reportDate: date,
     city: place.name || place.city || 'Current Location',
     state: place.admin1 || place.state || '',
+    district: place.admin2 || place.district || '',
     country: place.country || '',
     pinCode: place.pinCode || '',
     latitude: place.latitude,
