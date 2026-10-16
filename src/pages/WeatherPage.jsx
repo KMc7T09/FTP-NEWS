@@ -102,7 +102,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
   const summary = reports[0] ? escapePdfText(weatherSummary(reports[0])) : '';
   const generatedAt = new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
   const fallbackLogo = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="18" fill="#101820"/><path d="M0 132h160v28H0z" fill="#d71920"/><text x="80" y="105" text-anchor="middle" font-family="Georgia,serif" font-size="74" font-weight="700" fill="#fff">FTP</text></svg>')}`;
-  const logoSource = escapePdfText(logoURL || fallbackLogo);
+  const logoSource = escapePdfText(logoURL || new URL('/ftp-news-logo.png', window.location.href).href);
   const win = window.open('', '_blank');
   if (!win) {
     toast.error('Popup blocked. Allow popups to download PDF.');
@@ -120,10 +120,8 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
           * { box-sizing: border-box; }
           body { font-family: Arial, sans-serif; color: #15202b; margin: 0; background: #fff; }
           .masthead { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #d9dee5; padding:0 0 14px; }
-          .brand { display:flex; align-items:center; gap:12px; }
-          .mark { display:block; width:52px; height:52px; object-fit:contain; }
-          .brand-name { font-family:Georgia,serif; font-size:20px; font-weight:800; }
-          .brand-line { margin-top:3px; color:#d71920; font-size:9px; font-weight:800; letter-spacing:2px; }
+          .brand { display:flex; align-items:center; }
+          .mark { display:block; width:164px; height:100px; object-fit:cover; object-position:center; }
           .edition { color:#64748b; font-size:10px; text-align:right; line-height:1.7; }
           .heading { margin:24px 0 18px; }
           .kicker { color:#c51c25; font-size:10px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
@@ -146,7 +144,7 @@ function openPdfReport({ title, subtitle, reports, locationNote = '', logoURL = 
       </head>
       <body>
         <header class="masthead">
-          <div class="brand"><img class="mark" src="${logoSource}" alt="FTP logo" onerror="this.onerror=null;this.src='${fallbackLogo}'" /><div><div class="brand-name">THE FTP NEWS</div><div class="brand-line">FRESH TAKE POLITICS</div></div></div>
+          <div class="brand"><img class="mark" src="${logoSource}" alt="FTP Fresh Take Politics logo" onerror="this.onerror=null;this.src='${fallbackLogo}'" /></div>
           <div class="edition">WEATHER DESK<br/>Generated ${escapePdfText(generatedAt)}</div>
         </header>
         <section class="heading">
