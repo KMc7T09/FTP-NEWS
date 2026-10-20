@@ -262,7 +262,7 @@ async function saveReports(reports) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY looks incomplete. Copy the full secret/service role key from Supabase API Keys.');
   }
 
-  const endpoint = `${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`;
+  const endpoint = `${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,state,country`;
   const saved = [];
   const chunkSize = 500;
   for (let index = 0; index < reports.length; index += chunkSize) {

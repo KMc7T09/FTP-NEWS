@@ -373,7 +373,7 @@ create table if not exists public.daily_weather_reports (
   source text default 'Open-Meteo',
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
-  unique(report_date, city, country)
+  unique(report_date, city, state, country)
 );
 
 create table if not exists public.weather_locations (
