@@ -263,11 +263,12 @@ async function saveReports(reports) {
   }
 
   const endpoint = `${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,state,country`;
+  const legacyEndpoint = `${url}/rest/v1/daily_weather_reports?on_conflict=report_date,city,country`;
   const saved = [];
   const chunkSize = 500;
   for (let index = 0; index < reports.length; index += chunkSize) {
-    const chunk = reports.slice(index, index + chunkSize);
-    const response = await fetchWithTimeout(endpoint, {
+    let chunk = reports.slice(index, index + chunkSize);
+    const requestOptions = {
       method: 'POST',
       headers: {
         apikey: serviceKey,
@@ -276,9 +277,28 @@ async function saveReports(reports) {
         Prefer: 'resolution=merge-duplicates,return=representation',
       },
       body: JSON.stringify(chunk),
-    }, `Supabase weather save to ${new URL(url).host}`);
+    };
+    let response = await fetchWithTimeout(endpoint, requestOptions, `Supabase weather save to ${new URL(url).host}`);
+    let text = await response.text();
 
-    const text = await response.text();
+    // Older projects may still have the pre-state unique key; fall back without duplicate input rows.
+    let failure;
+    try {
+      failure = text ? JSON.parse(text) : null;
+    } catch {
+      failure = null;
+    }
+    if (!response.ok && failure?.code === '42P10') {
+      const uniqueByLegacyKey = new Map();
+      chunk.forEach((row) => uniqueByLegacyKey.set(`${row.report_date}\u0000${row.city}\u0000${row.country}`, row));
+      chunk = [...uniqueByLegacyKey.values()];
+      response = await fetchWithTimeout(legacyEndpoint, {
+        ...requestOptions,
+        body: JSON.stringify(chunk),
+      }, `Supabase legacy weather save to ${new URL(url).host}`);
+      text = await response.text();
+    }
+
     if (!response.ok) {
       throw new Error(`Supabase weather save failed: ${response.status} ${text}`);
     }
