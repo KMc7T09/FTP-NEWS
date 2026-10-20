@@ -351,7 +351,9 @@ exports.handler = async (event) => {
       error: error.message || 'Weather report failed.',
       help: error.statusCode === 409
         ? 'Weather locations are not configured yet. Run supabase/weather-locations-seed.sql in Supabase, then retry.'
-        : 'Check active weather_locations, daily_weather_reports schema, Netlify function logs, and server environment variables.',
+        : error.message?.includes('42P10')
+          ? 'The weather table is missing the matching unique constraint. Run supabase/weather-report-state-unique.sql in the correct Supabase project, then retry.'
+          : 'Check active weather_locations, daily_weather_reports schema, Netlify function logs, and server environment variables.',
     });
   }
 };
