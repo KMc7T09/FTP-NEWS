@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase, supabaseReady } from '../supabase/config.js';
 import { getProfile, upsertProfile } from '../supabase/api.js';
 
@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
 
-  async function loadProfile(user) {
+  const loadProfile = useCallback(async (user) => {
     if (!user) {
       setProfile(null);
       return null;
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
       setProfile(fallback);
       return fallback;
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!supabaseReady || !supabase) {
@@ -119,7 +119,7 @@ export function AuthProvider({ children }) {
       alive = false;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfile]);
 
   async function signup({ name, email, password }) {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
@@ -167,14 +167,14 @@ export function AuthProvider({ children }) {
     return email;
   }
 
-  async function verifyEmailOtp(email, token) {
+  const verifyEmailOtp = useCallback(async (email, token) => {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
     const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
     if (error) throw error;
     if (data.user) await withTimeout(upsertProfile(userToProfile(data.user)), 'Profile setup took too long.');
     if (data.user) await withTimeout(loadProfile(data.user), 'Profile loading took too long.');
     return data.user;
-  }
+  }, [loadProfile]);
 
   async function sendPhoneOtp(phone) {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
@@ -184,7 +184,7 @@ export function AuthProvider({ children }) {
     return normalized;
   }
 
-  async function verifyPhoneOtp(phone, token) {
+  const verifyPhoneOtp = useCallback(async (phone, token) => {
     if (!supabaseReady) throw new Error('Supabase is not configured.');
     const normalized = normalizePhone(phone);
     const { data, error } = await supabase.auth.verifyOtp({ phone: normalized, token, type: 'sms' });
@@ -192,7 +192,7 @@ export function AuthProvider({ children }) {
     if (data.user) await withTimeout(upsertProfile(userToProfile(data.user, { phone: normalized, whatsappOptIn: true })), 'Profile setup took too long.');
     if (data.user) await withTimeout(loadProfile(data.user), 'Profile loading took too long.');
     return data.user;
-  }
+  }, [loadProfile]);
 
   async function logout() {
     if (!supabaseReady) return;
@@ -233,7 +233,7 @@ export function AuthProvider({ children }) {
       refreshProfile: () => (currentUser ? withTimeout(loadProfile(currentUser), 'Profile refresh took too long.') : null),
     });
     },
-    [currentUser, profile, loading, authError],
+    [currentUser, profile, loading, authError, loadProfile, verifyEmailOtp, verifyPhoneOtp],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

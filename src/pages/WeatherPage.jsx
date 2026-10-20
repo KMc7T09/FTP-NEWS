@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { Activity, CloudSun, Download, Droplets, Globe2, LocateFixed, MapPin, RefreshCw, Search, ThermometerSun, Wind } from 'lucide-react';
 import { listWeatherReports } from '../supabase/api.js';
 import useSettings from '../hooks/useSettings.js';
+import Seo from '../components/common/Seo.jsx';
+import { indiaDateDaysAgo } from '../utils/format.js';
 
 const WEATHER_TEXT = new Map([
   [0, 'Clear sky'],
@@ -460,7 +462,7 @@ export default function WeatherPage() {
     setLiveHistory([]);
     setLiveForecast([]);
     setLoading(true);
-    listWeatherReports({ limit: 10000 })
+    listWeatherReports({ sinceDate: indiaDateDaysAgo(4), limit: 10000 })
       .then(setReports)
       .catch((error) => toast.error(error.message || 'Weather reports failed to load.'))
       .finally(() => setLoading(false));
@@ -642,6 +644,7 @@ export default function WeatherPage() {
 
   return (
     <main className="bg-[#f5f6f7] py-6 sm:py-8">
+      <Seo title="Weather Intelligence | THE FTP NEWS" description="Current conditions, five-day history, and local weather reports for Indian districts and cities from THE FTP NEWS." />
       <div className="container-page">
       <section className="mb-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">

@@ -544,7 +544,7 @@ export async function listPageVisits({ limit = 200 } = {}) {
   return data || [];
 }
 
-export async function listWeatherReports({ reportDate = '', limit = 100 } = {}) {
+export async function listWeatherReports({ reportDate = '', sinceDate = '', limit = 100 } = {}) {
   const client = requireSupabase();
   const safeLimit = Math.max(1, Math.min(Number(limit) || 100, 10000));
   const pageSize = 1000;
@@ -558,6 +558,7 @@ export async function listWeatherReports({ reportDate = '', limit = 100 } = {}) 
       .order('city', { ascending: true })
       .range(offset, Math.min(offset + pageSize, safeLimit) - 1);
     if (reportDate) query = query.eq('report_date', reportDate);
+    else if (sinceDate) query = query.gte('report_date', sinceDate);
     const { data, error } = await query;
     if (error) throw error;
     rows.push(...(data || []));

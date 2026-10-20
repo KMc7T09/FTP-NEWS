@@ -103,6 +103,7 @@ function highlightArticleHtml(html = '', article = {}) {
 export default function ArticlePage() {
   const { slug } = useParams();
   const { currentUser, profile, isBanned, loading } = useAuth();
+  const currentUserId = currentUser?.id;
   const settings = useSettings();
   const [article, setArticle] = useState(null);
   const [related, setRelated] = useState([]);
@@ -166,11 +167,11 @@ export default function ArticlePage() {
       countArticleLikes(article.id).then(setLikeCount).catch(() => setLikeCount(0));
       countArticleComments(article.id).then(setCommentCount).catch(() => {});
     }
-    if (currentUser && canInteractWithArticle) {
-      hasUserLiked(article.id, currentUser.id).then(setLiked).catch(() => setLiked(false));
-      hasUserBookmarked(article.id, currentUser.id).then(setBookmarked).catch(() => setBookmarked(false));
+    if (currentUserId && canInteractWithArticle) {
+      hasUserLiked(article.id, currentUserId).then(setLiked).catch(() => setLiked(false));
+      hasUserBookmarked(article.id, currentUserId).then(setBookmarked).catch(() => setBookmarked(false));
     }
-  }, [article?.id, canInteractWithArticle, currentUser?.id]);
+  }, [article?.id, canInteractWithArticle, currentUserId]);
 
   async function submitComment(event) {
     event.preventDefault();

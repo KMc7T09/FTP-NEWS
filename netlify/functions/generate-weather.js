@@ -1,48 +1,3 @@
-const CITIES = [
-  { city: 'Angul', state: 'Odisha', latitude: 20.8444, longitude: 85.1511 },
-  { city: 'Balangir', state: 'Odisha', latitude: 20.7042, longitude: 83.4903 },
-  { city: 'Bhubaneswar', state: 'Odisha', latitude: 20.2961, longitude: 85.8245 },
-  { city: 'Bargarh', state: 'Odisha', latitude: 21.3333, longitude: 83.6167 },
-  { city: 'Cuttack', state: 'Odisha', latitude: 20.4625, longitude: 85.8830 },
-  { city: 'Bhadrak', state: 'Odisha', latitude: 21.0583, longitude: 86.4958 },
-  { city: 'Boudh', state: 'Odisha', latitude: 20.8377, longitude: 84.3262 },
-  { city: 'Deogarh', state: 'Odisha', latitude: 21.5383, longitude: 84.7333 },
-  { city: 'Dhenkanal', state: 'Odisha', latitude: 20.6574, longitude: 85.5969 },
-  { city: 'Paralakhemundi', state: 'Odisha', latitude: 18.7789, longitude: 84.0936 },
-  { city: 'Chhatrapur', state: 'Odisha', latitude: 19.3557, longitude: 84.9860 },
-  { city: 'Jagatsinghpur', state: 'Odisha', latitude: 20.2549, longitude: 86.1706 },
-  { city: 'Jajpur', state: 'Odisha', latitude: 20.8500, longitude: 86.3333 },
-  { city: 'Jharsuguda', state: 'Odisha', latitude: 21.8553, longitude: 84.0062 },
-  { city: 'Bhawanipatna', state: 'Odisha', latitude: 19.9074, longitude: 83.1649 },
-  { city: 'Phulbani', state: 'Odisha', latitude: 20.4686, longitude: 84.2304 },
-  { city: 'Kendrapara', state: 'Odisha', latitude: 20.5000, longitude: 86.4167 },
-  { city: 'Kendujhar', state: 'Odisha', latitude: 21.6289, longitude: 85.5817 },
-  { city: 'Khordha', state: 'Odisha', latitude: 20.1827, longitude: 85.6163 },
-  { city: 'Koraput', state: 'Odisha', latitude: 18.8135, longitude: 82.7123 },
-  { city: 'Malkangiri', state: 'Odisha', latitude: 18.3643, longitude: 81.8880 },
-  { city: 'Baripada', state: 'Odisha', latitude: 21.9322, longitude: 86.7517 },
-  { city: 'Nabarangpur', state: 'Odisha', latitude: 19.2311, longitude: 82.5483 },
-  { city: 'Nayagarh', state: 'Odisha', latitude: 20.1288, longitude: 85.0963 },
-  { city: 'Nuapada', state: 'Odisha', latitude: 20.8167, longitude: 82.5333 },
-  { city: 'Puri', state: 'Odisha', latitude: 19.8135, longitude: 85.8312 },
-  { city: 'Rourkela', state: 'Odisha', latitude: 22.2604, longitude: 84.8536 },
-  { city: 'Rayagada', state: 'Odisha', latitude: 19.1712, longitude: 83.4160 },
-  { city: 'Sambalpur', state: 'Odisha', latitude: 21.4669, longitude: 83.9812 },
-  { city: 'Subarnapur', state: 'Odisha', latitude: 20.8333, longitude: 83.9167 },
-  { city: 'Berhampur', state: 'Odisha', latitude: 19.3149, longitude: 84.7941 },
-  { city: 'Balasore', state: 'Odisha', latitude: 21.4934, longitude: 86.9135 },
-  { city: 'Delhi', state: 'Delhi', latitude: 28.6139, longitude: 77.209 },
-  { city: 'Mumbai', state: 'Maharashtra', latitude: 19.076, longitude: 72.8777 },
-  { city: 'Kolkata', state: 'West Bengal', latitude: 22.5726, longitude: 88.3639 },
-  { city: 'Chennai', state: 'Tamil Nadu', latitude: 13.0827, longitude: 80.2707 },
-  { city: 'Bengaluru', state: 'Karnataka', latitude: 12.9716, longitude: 77.5946 },
-  { city: 'Hyderabad', state: 'Telangana', latitude: 17.385, longitude: 78.4867 },
-  { city: 'Ahmedabad', state: 'Gujarat', latitude: 23.0225, longitude: 72.5714 },
-  { city: 'Pune', state: 'Maharashtra', latitude: 18.5204, longitude: 73.8567 },
-  { city: 'Jaipur', state: 'Rajasthan', latitude: 26.9124, longitude: 75.7873 },
-  { city: 'Lucknow', state: 'Uttar Pradesh', latitude: 26.8467, longitude: 80.9462 },
-];
-
 const WEATHER_TEXT = new Map([
   [0, 'Clear sky'],
   [1, 'Mostly clear'],
@@ -63,18 +18,11 @@ const WEATHER_TEXT = new Map([
   [95, 'Thunderstorm'],
 ]);
 
-exports.config = {
-  schedule: '30 0 * * *',
-};
-
 function json(statusCode, body) {
   return {
     statusCode,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     },
     body: JSON.stringify(body),
   };
@@ -98,14 +46,6 @@ function normalizeSupabaseUrl(value = '') {
   const trimmed = String(value).trim().replace(/\/+$/, '');
   if (!trimmed) return '';
   return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
-}
-
-function safeHost(url = '') {
-  try {
-    return url ? new URL(url).host : 'missing';
-  } catch {
-    return `invalid url: ${url}`;
-  }
 }
 
 function getSupabaseConfig() {
@@ -175,11 +115,13 @@ async function fetchWeatherBatch(cities) {
     forecast_days: '1',
   });
 
-  const response = await fetchWithTimeout(
-    `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
-    {},
-    `Open-Meteo weather API for ${cities.length} locations`
-  );
+  const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+  let response;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await fetchWithTimeout(url, {}, `Open-Meteo weather API for ${cities.length} locations`);
+    if (![429, 500, 502, 503, 504].includes(response.status) || attempt === 2) break;
+    await wait(400 * (2 ** attempt));
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
@@ -228,31 +170,75 @@ async function fetchAllCityWeather({ offset = 0, limit = 80 } = {}) {
 
 async function loadWeatherLocations() {
   const { url, serviceKey } = getSupabaseConfig();
-  if (!url || !serviceKey) return CITIES;
+  if (!url || !serviceKey) throw new Error('Weather generation needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Netlify environment variables.');
 
-  try {
-    const response = await fetchWithTimeout(
-      `${url}/rest/v1/weather_locations?is_active=eq.true&select=city,state,country,latitude,longitude&order=state.asc,city.asc`,
-      {
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-        },
+  const response = await fetchWithTimeout(
+    `${url}/rest/v1/weather_locations?is_active=eq.true&select=city,state,country,latitude,longitude&order=state.asc,city.asc`,
+    {
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
       },
-      'Supabase weather location load'
-    );
-    if (!response.ok) return CITIES;
-    const rows = await response.json();
-    if (!Array.isArray(rows) || !rows.length) return CITIES;
-    return rows.map((row) => ({
-      city: row.city,
-      state: row.state || '',
-      country: row.country || 'India',
-      latitude: Number(row.latitude),
-      longitude: Number(row.longitude),
-    })).filter((row) => row.city && Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
+    },
+    'Supabase weather location load'
+  );
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Weather locations could not be loaded from Supabase (${response.status}): ${text.slice(0, 400)}`);
+  let rows;
+  try {
+    rows = text ? JSON.parse(text) : [];
   } catch {
-    return CITIES;
+    throw new Error('Supabase returned invalid data for weather_locations.');
+  }
+  if (!Array.isArray(rows) || !rows.length) throw new Error('No active rows in weather_locations. Add/activate locations before generating weather.');
+  const locations = rows.map((row) => ({
+    city: row.city,
+    state: row.state || '',
+    country: row.country || 'India',
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+  })).filter((row) => row.city && Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
+  if (!locations.length) throw new Error('weather_locations has no rows with valid city names and coordinates.');
+  return locations;
+}
+
+async function assertActiveAdmin(event) {
+  const { url, serviceKey } = getSupabaseConfig();
+  const authorization = event.headers?.authorization || event.headers?.Authorization || '';
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) {
+    const error = new Error('Sign in with an admin account before generating weather.');
+    error.statusCode = 401;
+    throw error;
+  }
+  if (!url || !serviceKey) throw new Error('Weather generation is not configured on the server.');
+
+  const userResponse = await fetchWithTimeout(`${url}/auth/v1/user`, {
+    headers: { apikey: serviceKey, Authorization: `Bearer ${token}` },
+  }, 'Admin session verification');
+  if (!userResponse.ok) {
+    const error = new Error('Your login session is invalid or expired. Sign in again.');
+    error.statusCode = 401;
+    throw error;
+  }
+  const user = await userResponse.json();
+  const profilesResponse = await fetchWithTimeout(
+    `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=email,role,status`,
+    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+    'Admin role lookup'
+  );
+  if (!profilesResponse.ok) throw new Error(`Admin role lookup failed (${profilesResponse.status}).`);
+  const profiles = await profilesResponse.json();
+  const profile = profiles[0];
+  const ownerEmails = String(process.env.BOOTSTRAP_ADMIN_EMAILS || process.env.VITE_BOOTSTRAP_ADMIN_EMAILS || 'kubulukhotei@gmail.com')
+    .split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
+  const email = String(user.email || profile?.email || '').toLowerCase();
+  const owner = ownerEmails.includes(email);
+  const authorized = profile?.status === 'active' && (owner || ['admin', 'superadmin'].includes(profile?.role));
+  if (!authorized) {
+    const error = new Error('An active admin or superadmin account is required for weather generation.');
+    error.statusCode = 403;
+    throw error;
   }
 }
 
@@ -321,20 +307,10 @@ exports.handler = async (event) => {
     }
 
     if (event.httpMethod !== 'POST') {
-      const { url, serviceKey } = getSupabaseConfig();
-      const siteUrl = normalizeSupabaseUrl(process.env.URL || process.env.DEPLOY_PRIME_URL);
-      if (!siteUrl || !serviceKey) throw new Error('Scheduled weather job could not start: Netlify URL or SUPABASE_SERVICE_ROLE_KEY is missing.');
-      const response = await fetchWithTimeout(`${siteUrl}/.netlify/functions/generate-weather-background`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${serviceKey}` },
-      }, 'Scheduled weather background job enqueue');
-      if (response.status !== 202) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`Scheduled weather background job returned ${response.status}. ${text}`);
-      }
-      return json(202, { ok: true, queued: true, supabaseHost: safeHost(url) });
+      return json(405, { ok: false, error: 'Method not allowed. Use the authenticated Admin Panel action.' });
     }
 
+    await assertActiveAdmin(event);
     const offset = Number(event.queryStringParameters?.offset || 0);
     const limit = Number(event.queryStringParameters?.limit || 80);
     const { reports, failed, totalLocations, nextOffset, hasMore } = await fetchAllCityWeather({ offset, limit });
@@ -362,16 +338,10 @@ exports.handler = async (event) => {
       hasMore,
     });
   } catch (error) {
-    const { url, serviceKey } = getSupabaseConfig();
-    return json(500, {
+    return json(error.statusCode || 500, {
       ok: false,
       error: error.message || 'Weather report failed.',
-      debug: {
-        supabaseHost: safeHost(url),
-        hasServiceKey: Boolean(serviceKey),
-        serviceKeyLength: serviceKey ? serviceKey.length : 0,
-      },
-      help: 'Check Netlify env vars, Supabase daily_weather_reports table, and function deploy logs.',
+      help: 'Check active weather_locations, daily_weather_reports schema, Netlify function logs, and server environment variables.',
     });
   }
 };

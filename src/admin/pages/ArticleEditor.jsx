@@ -62,6 +62,10 @@ export default function ArticleEditor() {
 
   async function submit(event) {
     event.preventDefault();
+    if (form.status === 'published' && !form.content.replace(/<[^>]*>/g, '').trim()) {
+      toast.error('Add the article body before publishing.');
+      return;
+    }
     setBusy(true);
     try {
       const category = categories.find((item) => item.id === form.categoryId);
@@ -164,7 +168,18 @@ export default function ArticleEditor() {
           </div>
           <div>
             <label className="label">Featured Image URL</label>
-            <input className="input mt-2" value={form.featuredImageURL} onChange={(event) => setField('featuredImageURL', event.target.value)} />
+            <input className="input mt-2" type="url" value={form.featuredImageURL} onChange={(event) => setField('featuredImageURL', event.target.value)} placeholder="https://..." />
+            {/^https?:\/\//i.test(form.featuredImageURL || '') && (
+              <figure className="mt-3 overflow-hidden rounded-md border border-gray-200 bg-gray-100">
+                <img
+                  src={form.featuredImageURL}
+                  alt={`${form.title || 'Article'} preview`}
+                  className="aspect-[16/9] w-full object-cover"
+                  onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                />
+                <figcaption className="border-t border-gray-200 bg-white px-3 py-2 text-xs text-gray-500">Image preview</figcaption>
+              </figure>
+            )}
           </div>
           <div>
             <label className="label">Source Name</label>

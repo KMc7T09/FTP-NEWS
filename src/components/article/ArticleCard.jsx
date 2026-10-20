@@ -43,11 +43,11 @@ export default function ArticleCard({ article, large = false, compact = false, s
   return (
     <article className={`news-card group overflow-hidden ${large ? 'shadow-[0_24px_70px_rgba(15,23,42,0.10)]' : ''}`}>
       <div className={large ? 'grid min-h-full lg:grid-cols-[1.08fr_0.92fr]' : ''}>
-      <Link to={articlePath} className={`relative block overflow-hidden bg-gray-100 ${large ? 'min-h-64 aspect-[16/9] lg:aspect-auto' : ''} ${compact ? 'hidden sm:block' : ''}`}>
+      <Link to={articlePath} className={`relative block aspect-[16/9] overflow-hidden bg-gray-100 ${large ? 'min-h-64 lg:aspect-auto' : ''} ${compact ? 'hidden sm:block' : ''}`}>
         <img
           src={article.featuredImageURL || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80'}
           alt={article.title}
-          className={`h-full w-full ${large ? 'absolute inset-0 min-h-full bg-gray-950 object-contain' : 'min-h-52 object-cover'} object-center transition duration-500 group-hover:scale-[1.03] ${compact ? 'sm:min-h-36' : ''}`}
+          className={`absolute inset-0 h-full w-full ${large ? 'bg-gray-950 object-contain' : 'object-cover'} object-center transition duration-500 group-hover:scale-[1.03]`}
           loading={large ? 'eager' : 'lazy'}
         />
         <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-brand-red shadow-sm">

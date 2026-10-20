@@ -12,6 +12,15 @@ export function formatDateTime(value) {
   return Number.isNaN(date.getTime()) ? '-' : format(date, 'MMM d, yyyy, h:mm a');
 }
 
+export function indiaDateDaysAgo(days = 0) {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const date = new Date(`${today}T00:00:00+05:30`);
+  date.setUTCDate(date.getUTCDate() - Math.max(0, Number(days) || 0));
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(date);
+}
+
 export function readTime(content = '') {
   const words = String(content).replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
   return `${Math.max(1, Math.ceil(words / 220))} min read`;

@@ -1,5 +1,5 @@
-import { Edit, Eye, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Edit, Eye, Plus, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import AdminTable from '../components/AdminTable.jsx';
@@ -11,9 +11,15 @@ import { deleteArticle, listArticles } from '../../supabase/api.js';
 export default function ArticleManager() {
   const { isAdmin } = useAuth();
   const [rows, setRows] = useState([]);
+  const [term, setTerm] = useState('');
+  const [status, setStatus] = useState('all');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const pageSize = 20;
 
   function load() {
-    listArticles({ limit: 100 }).then(setRows).catch((error) => toast.error(error.message));
+    setLoading(true);
+    listArticles({ limit: 100 }).then(setRows).catch((error) => toast.error(error.message)).finally(() => setLoading(false));
   }
 
   useEffect(load, []);
@@ -28,16 +34,42 @@ export default function ArticleManager() {
     }
   }
 
+  const filteredRows = useMemo(() => rows.filter((row) => {
+    const matchesStatus = status === 'all' || row.status === status;
+    const matchesTerm = [row.title, row.categoryName, row.authorName, row.slug]
+      .join(' ').toLowerCase().includes(term.trim().toLowerCase());
+    return matchesStatus && matchesTerm;
+  }), [rows, status, term]);
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const visibleRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <section>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold">Articles</h1>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="section-kicker">Publishing Desk</p>
+          <h1 className="mt-1 text-2xl font-extrabold">Articles</h1>
+          <p className="mt-1 text-sm text-gray-500">Search and manage the latest 100 articles.</p>
+        </div>
         <Link to="/admin/articles/new" className="btn-primary">
           <Plus size={16} /> Create Article
         </Link>
       </div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_auto] sm:items-center">
+        <label className="relative block">
+          <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input className="input pl-10" placeholder="Search title, category, author" value={term} onChange={(event) => { setTerm(event.target.value); setPage(1); }} />
+        </label>
+        <select className="input" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} aria-label="Filter articles by publication status">
+          <option value="all">All statuses</option>
+          <option value="published">Published</option>
+          <option value="draft">Drafts</option>
+        </select>
+        <span className="text-sm font-semibold text-gray-500">{filteredRows.length} result{filteredRows.length === 1 ? '' : 's'}</span>
+      </div>
       <AdminTable
-        rows={rows}
+        rows={visibleRows}
+        empty={loading ? 'Loading articles...' : 'No articles match these filters.'}
         columns={[
           { key: 'title', label: 'Title' },
           { key: 'categoryName', label: 'Category' },
@@ -70,6 +102,15 @@ export default function ArticleManager() {
           },
         ]}
       />
+      {pageCount > 1 && (
+        <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+          <span className="text-gray-500">Page {page} of {pageCount}</span>
+          <div className="flex gap-2">
+            <button className="btn-secondary" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button>
+            <button className="btn-secondary" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}>Next</button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

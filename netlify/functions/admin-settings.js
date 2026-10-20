@@ -64,7 +64,7 @@ async function assertAdmin(event) {
   const { user } = await requestUser(event);
   const profile = await profileForUser(user.id);
   const email = String(user.email || profile?.email || '').toLowerCase();
-  if (!ownerEmails.includes(email) && !['admin', 'superadmin'].includes(profile?.role)) {
+  if (profile?.status !== 'active' || (!ownerEmails.includes(email) && !['admin', 'superadmin'].includes(profile?.role))) {
     throw new Error('Only admin or superadmin can update settings.');
   }
 }

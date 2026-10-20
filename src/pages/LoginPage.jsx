@@ -101,7 +101,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <Seo title="Login | FTP News / KMC News Portal" />
+      <Seo title="Join or Sign In | THE FTP NEWS" description="Join THE FTP NEWS to save stories, like and comment on reporting, and take part in reader discussions." />
       <section className="container-page auth-page flex min-h-[70vh] items-center justify-center py-8 sm:py-12">
         <div className="auth-layout grid w-full max-w-5xl gap-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-soft md:grid-cols-2">
         <div className="auth-intro hidden flex-col justify-between bg-gray-950 p-8 text-white md:col-span-2 md:flex md:flex-row md:items-end">

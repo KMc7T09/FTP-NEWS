@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { AlertTriangle, CloudSun, Download, MapPinned, RefreshCw, TrendingUp, Zap } from 'lucide-react';
 import AdminTable from '../components/AdminTable.jsx';
 import { listWeatherReports } from '../../supabase/api.js';
+import { supabase } from '../../supabase/config.js';
+import { indiaDateDaysAgo } from '../../utils/format.js';
 
 function formatDate(value) {
   if (!value) return '-';
@@ -58,7 +60,7 @@ export default function WeatherManager() {
 
   function loadReports() {
     setLoading(true);
-    listWeatherReports({ limit: 10000 })
+    listWeatherReports({ sinceDate: indiaDateDaysAgo(4), limit: 10000 })
       .then(setReports)
       .catch((error) => toast.error(error.message || 'Weather reports failed to load.'))
       .finally(() => setLoading(false));
@@ -76,9 +78,15 @@ export default function WeatherManager() {
       let hasMore = true;
       let batches = 0;
       setGenerationProgress({ completed: offset, total: 0 });
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error('Your admin session expired. Sign in again and retry.');
 
       while (hasMore && batches < 100) {
-        const response = await fetch(`/.netlify/functions/generate-weather?offset=${offset}&limit=20`, { method: 'POST' }).catch(() => {
+        const response = await fetch(`/.netlify/functions/generate-weather?offset=${offset}&limit=20`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }).catch(() => {
           throw new Error('Weather function is not reachable. Redeploy Netlify after pushing latest code.');
         });
         const text = await response.text();
@@ -100,11 +108,13 @@ export default function WeatherManager() {
         setLastRun({ ...data, saved: totalSaved, failed, totalLocations, batches });
       }
 
+      setLastRun({ saved: totalSaved, failed, totalLocations, batches });
       if (hasMore) {
         toast.error(`Updated ${offset} of ${totalLocations} locations. Click Update now again to continue.`);
+      } else if (failed.length) {
+        toast.error(`${totalSaved} reports saved; ${failed.length} locations failed. Review the detailed failures below and retry later.`);
       } else {
-        toast.success(`Weather report saved: ${totalSaved} rows for ${totalLocations || 'all'} locations.`);
-        setLastRun(null);
+        toast.success(`Weather saved: ${totalSaved} report rows for ${totalLocations} locations.`);
       }
       loadReports();
     } catch (error) {

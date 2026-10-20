@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Activity, ArrowRight, Eye, FileText, Heart, MessageCircle, Share2, TrendingUp, Users } from 'lucide-react';
+import { Activity, ArrowRight, Eye, FileText, Heart, MessageCircle, RefreshCw, Share2, TrendingUp, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { demoArticles, demoCategories } from '../../data/demoContent.js';
 import { formatDate } from '../../utils/format.js';
@@ -27,9 +27,13 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [comments, setComments] = useState([]);
   const [visits, setVisits] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState('');
 
-  function loadStats() {
-    Promise.all([
+  const loadStats = useCallback(() => {
+    setStatsLoading(true);
+    setStatsError('');
+    return Promise.all([
       listArticles({ limit: 200 }),
       isAdmin ? listProfiles() : Promise.resolve([]),
       isAdmin ? listComments() : Promise.resolve([]),
@@ -47,15 +51,16 @@ export default function AdminDashboard() {
           comments: commentRows.length,
           pending: commentRows.filter((item) => item.status === 'pending').length,
           banned: userRows.filter((item) => item.status === 'banned').length,
-          reach: articleRows.reduce((total, item) => total + Number(item.views || 0), 0) + visitRows.length,
+          views: articleRows.reduce((total, item) => total + Number(item.views || 0), 0),
           likes: likes.length,
           shares: articleRows.reduce((total, item) => total + Number(item.shares || 0), 0),
         });
       })
-      .catch(() => {});
-  }
+      .catch((error) => setStatsError(error.message || 'Dashboard metrics could not be loaded.'))
+      .finally(() => setStatsLoading(false));
+  }, [isAdmin, isSuperAdmin]);
 
-  useEffect(loadStats, [isAdmin]);
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   async function addDemoContent() {
     try {
@@ -92,23 +97,25 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-secondary" onClick={loadStats} disabled={statsLoading} aria-label="Refresh dashboard data"><RefreshCw size={16} className={statsLoading ? 'animate-spin' : ''} /> Refresh</button>
           {isAdmin && <Link to="/admin/categories" className="btn-secondary">Add Category</Link>}
           {isAdmin && <button type="button" className="btn-secondary" onClick={addDemoContent}>Add Demo Articles</button>}
           <Link to="/admin/articles/new" className="btn-primary">Create Article</Link>
         </div>
       </div>
+      {statsError && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert"><span>{statsError}</span><button className="font-bold underline" onClick={loadStats}>Try again</button></div>}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Total Articles" value={stats.articles} icon={FileText} tone="dark" />
-        {isAdmin && <Stat label="Reach" value={stats.reach} icon={Eye} tone="dark" />}
-        {isAdmin && <Stat label="Likes" value={stats.likes} icon={Heart} tone="dark" />}
-        {isAdmin && <Stat label="Total Users" value={stats.users} icon={Users} tone="dark" />}
+        <Stat label="Articles loaded" value={statsLoading ? '…' : stats.articles} icon={FileText} tone="dark" />
+        {isAdmin && <Stat label="Views on loaded articles" value={statsLoading ? '…' : stats.views} icon={Eye} tone="dark" />}
+        {isAdmin && <Stat label="Likes in loaded rows" value={statsLoading ? '…' : stats.likes} icon={Heart} tone="dark" />}
+        {isAdmin && <Stat label="Users loaded" value={statsLoading ? '…' : stats.users} icon={Users} tone="dark" />}
       </div>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat label="Published" value={published} icon={TrendingUp} />
-        <Stat label="Drafts" value={drafts} icon={FileText} />
-        {isAdmin && <Stat label="Comments" value={stats.comments} icon={MessageCircle} />}
-        {isAdmin && <Stat label="Pending" value={stats.pending} icon={Activity} />}
-        {isAdmin && <Stat label="Shares" value={stats.shares} icon={Share2} />}
+        <Stat label="Published in loaded articles" value={statsLoading ? '…' : published} icon={TrendingUp} />
+        <Stat label="Drafts in loaded articles" value={statsLoading ? '…' : drafts} icon={FileText} />
+        {isAdmin && <Stat label="Comments loaded" value={statsLoading ? '…' : stats.comments} icon={MessageCircle} />}
+        {isAdmin && <Stat label="Pending in loaded comments" value={statsLoading ? '…' : stats.pending} icon={Activity} />}
+        {isAdmin && <Stat label="Shares on loaded articles" value={statsLoading ? '…' : stats.shares} icon={Share2} />}
       </div>
 
       {isAdmin && (

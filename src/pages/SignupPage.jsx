@@ -25,7 +25,7 @@ export default function SignupPage() {
 
   return (
     <>
-      <Seo title="Signup | FTP News / KMC News Portal" />
+      <Seo title="Create Account | THE FTP NEWS" description="Create a free THE FTP NEWS account to join reader discussions and save stories." />
       <section className="container-page auth-page flex min-h-[70vh] items-center justify-center py-8 sm:py-12">
         <div className="auth-layout grid w-full max-w-4xl overflow-hidden rounded-lg border border-gray-200 bg-white shadow-soft md:grid-cols-[0.85fr_1.15fr]">
         <div className="auth-intro flex flex-col justify-between bg-gray-950 p-7 text-white sm:p-9">

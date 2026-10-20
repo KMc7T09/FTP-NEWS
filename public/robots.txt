@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /profile
+Disallow: /auth/
+
+Sitemap: https://the-ftp-news.netlify.app/sitemap.xml

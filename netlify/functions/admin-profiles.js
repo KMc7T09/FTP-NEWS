@@ -62,12 +62,12 @@ async function getProfile(id) {
 
 function canUseAdmin(profile, user, ownerEmails) {
   const email = String(user.email || profile?.email || '').toLowerCase();
-  return ownerEmails.includes(email) || ['admin', 'superadmin'].includes(profile?.role);
+  return profile?.status === 'active' && (ownerEmails.includes(email) || ['admin', 'superadmin'].includes(profile?.role));
 }
 
 function canChangeRoles(profile, user, ownerEmails) {
   const email = String(user.email || profile?.email || '').toLowerCase();
-  return ownerEmails.includes(email) || profile?.role === 'superadmin';
+  return profile?.status === 'active' && (ownerEmails.includes(email) || profile?.role === 'superadmin');
 }
 
 function rowFromUpdates(updates = {}) {
