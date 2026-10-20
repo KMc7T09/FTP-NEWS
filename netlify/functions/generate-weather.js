@@ -190,7 +190,11 @@ async function loadWeatherLocations() {
   } catch {
     throw new Error('Supabase returned invalid data for weather_locations.');
   }
-  if (!Array.isArray(rows) || !rows.length) throw new Error('No active rows in weather_locations. Add/activate locations before generating weather.');
+  if (!Array.isArray(rows) || !rows.length) {
+    const error = new Error('No active weather locations are configured. Run supabase/weather-locations-seed.sql in the Supabase SQL Editor, then retry.');
+    error.statusCode = 409;
+    throw error;
+  }
   const locations = rows.map((row) => ({
     city: row.city,
     state: row.state || '',
@@ -198,7 +202,11 @@ async function loadWeatherLocations() {
     latitude: Number(row.latitude),
     longitude: Number(row.longitude),
   })).filter((row) => row.city && Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
-  if (!locations.length) throw new Error('weather_locations has no rows with valid city names and coordinates.');
+  if (!locations.length) {
+    const error = new Error('Active weather locations have missing or invalid coordinates. Review city, latitude, and longitude in public.weather_locations.');
+    error.statusCode = 409;
+    throw error;
+  }
   return locations;
 }
 
@@ -341,7 +349,9 @@ exports.handler = async (event) => {
     return json(error.statusCode || 500, {
       ok: false,
       error: error.message || 'Weather report failed.',
-      help: 'Check active weather_locations, daily_weather_reports schema, Netlify function logs, and server environment variables.',
+      help: error.statusCode === 409
+        ? 'Weather locations are not configured yet. Run supabase/weather-locations-seed.sql in Supabase, then retry.'
+        : 'Check active weather_locations, daily_weather_reports schema, Netlify function logs, and server environment variables.',
     });
   }
 };
