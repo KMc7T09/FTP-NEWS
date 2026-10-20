@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Activity, CloudSun, Download, Droplets, Globe2, LocateFixed, MapPin, RefreshCw, Search, ThermometerSun, Wind } from 'lucide-react';
 import { listWeatherReports } from '../supabase/api.js';
 import useSettings from '../hooks/useSettings.js';
 import Seo from '../components/common/Seo.jsx';
 import { indiaDateDaysAgo } from '../utils/format.js';
+import WeatherLocationMap from '../components/weather/WeatherLocationMap.jsx';
+
+const GEO_CACHE = new Map();
+const GEO_CACHE_TTL = 15 * 60 * 1000;
 
 const WEATHER_TEXT = new Map([
   [0, 'Clear sky'],
@@ -80,7 +84,7 @@ function postOfficeAreaName(value = '') {
 function weatherSummary(report) {
   if (report.summary) return report.summary;
   const label = WEATHER_TEXT.get(report.weatherCode) || 'Weather update available';
-  return `${report.city}: ${label}. Max ${report.temperatureMax ?? '-'} C, min ${report.temperatureMin ?? '-'} C, rain chance ${report.precipitationProbability ?? 0}%, rainfall ${report.rainfall ?? 0} mm.`;
+  return `${report.city}: ${label}. Max ${report.temperatureMax ?? 'not available'} C, min ${report.temperatureMin ?? 'not available'} C, rain chance ${report.precipitationProbability ?? 'not available'}%, rainfall ${report.rainfall ?? 'not available'} mm.`;
 }
 
 function slugify(value = 'weather') {
@@ -97,6 +101,19 @@ function normalizePlaceName(value = '') {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('The request took too long. Please retry.');
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 function reportToPlace(report) {
   return {
     id: `saved-${report.id}`,
@@ -108,18 +125,110 @@ function reportToPlace(report) {
   };
 }
 
+function timeOfDay(value) {
+  if (!value) return 'Not available';
+  const time = String(value).split('T')[1]?.slice(0, 5);
+  return time || 'Not available';
+}
+
+function formatWeatherValue(value, unit = '') {
+  return value == null || value === '' ? 'Not available' : `${value}${unit}`;
+}
+
+function LocationWeatherTable({ report, searchedQuery }) {
+  const coordinates = Number.isFinite(Number(report.latitude)) && Number.isFinite(Number(report.longitude))
+    ? `${Number(report.latitude).toFixed(4)}, ${Number(report.longitude).toFixed(4)}`
+    : 'Not available';
+  const wind = report.windSpeed == null
+    ? 'Not available'
+    : `${report.windSpeed} km/h${report.windDirection == null ? '' : ` · ${report.windDirection}° direction`}${report.windGusts == null ? '' : ` · gusts ${report.windGusts} km/h`}`;
+  const pressure = report.pressure == null ? 'Not available' : `${report.pressure} hPa`;
+  const precip = report.currentPrecipitation == null && report.rainfall == null
+    ? 'Not available'
+    : `${report.currentPrecipitation == null ? '' : `${report.currentPrecipitation} mm now`}${report.currentPrecipitation != null && report.rainfall != null ? ' · ' : ''}${report.rainfall == null ? '' : `${report.rainfall} mm daily rain`}`;
+  const observed = report.observationTime
+    ? `${String(report.observationTime).replace('T', ' ')} (${report.timezone || 'local time'})`
+    : report.updatedAt
+      ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(report.updatedAt))
+      : 'Not available';
+  const rows = [
+    ['Search', 'Query', searchedQuery || 'Not available'],
+    ['Location', 'Resolved place', [report.city, report.district, report.state, report.country].filter(Boolean).join(', ') || 'Not available'],
+    ['Location', 'PIN code', report.pinCode || 'Not available'],
+    ['Location', 'Coordinates', coordinates],
+    ['Conditions', 'Temperature', formatWeatherValue(report.temperatureCurrent, ' °C')],
+    ['Conditions', 'Feels like', formatWeatherValue(report.feelsLike, ' °C')],
+    ['Conditions', 'Relative humidity', formatWeatherValue(report.relativeHumidity, '%')],
+    ['Conditions', 'Weather', WEATHER_TEXT.get(Number(report.weatherCode)) || 'Not available'],
+    ['Conditions', 'Wind', wind],
+    ['Conditions', 'Precipitation', precip],
+    ['Conditions', 'Rain probability', formatWeatherValue(report.precipitationProbability, '%')],
+    ['Conditions', 'Surface pressure', pressure],
+    ['Daylight', 'Sunrise', timeOfDay(report.sunrise)],
+    ['Daylight', 'Sunset', timeOfDay(report.sunset)],
+    ['Data', 'Observation time', observed],
+    ['Data', 'Source', report.source || 'Not available'],
+  ];
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-100 px-4 py-3">
+        <p className="section-kicker">Selected location</p>
+        <h3 className="mt-1 text-base font-extrabold text-gray-950">Weather details</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[460px] border-collapse text-left text-sm">
+          <caption className="sr-only">Weather conditions and location details for {report.city}</caption>
+          <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+            <tr><th className="px-4 py-3 font-bold">Group</th><th className="px-4 py-3 font-bold">Detail</th><th className="px-4 py-3 font-bold">Value</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(([group, label, value], index) => (
+              <tr key={label} className="border-t border-gray-100">
+                <td className="whitespace-nowrap px-4 py-3 text-xs font-bold text-gray-500">{index === 0 || rows[index - 1][0] !== group ? group : ''}</td>
+                <th scope="row" className="whitespace-nowrap px-4 py-3 font-semibold text-gray-800">{label}</th>
+                <td className="px-4 py-3 text-gray-700">{value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {report.pinCode ? <p className="border-t border-gray-100 px-4 py-3 text-xs leading-5 text-gray-500">A PIN code can include several post offices. Weather is estimated for the resolved nearby coordinate/model grid, not an exact street address.</p> : null}
+    </section>
+  );
+}
+
+function cachedGeocode(key, loader) {
+  const cached = GEO_CACHE.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const value = Promise.resolve().then(loader).catch((error) => {
+    GEO_CACHE.delete(key);
+    throw error;
+  });
+  GEO_CACHE.set(key, { value, expiresAt: Date.now() + GEO_CACHE_TTL });
+  while (GEO_CACHE.size > 100) GEO_CACHE.delete(GEO_CACHE.keys().next().value);
+  return value;
+}
+
 async function geocodePlaces(name, countryCode = '') {
-  const params = new URLSearchParams({ name, count: '12', language: 'en', format: 'json' });
-  if (countryCode) params.set('countryCode', countryCode);
-  const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
-  if (!response.ok) throw new Error('City or district search failed.');
-  const data = await response.json();
-  return data.results || [];
+  const cacheKey = `place:${normalizePlaceName(name)}:${countryCode.toUpperCase()}`;
+  return cachedGeocode(cacheKey, async () => {
+    const params = new URLSearchParams({ name, count: '12', language: 'en', format: 'json' });
+    if (countryCode) params.set('countryCode', countryCode);
+    const response = await fetchWithTimeout(`https://geocoding-api.open-meteo.com/v1/search?${params.toString()}`);
+    if (!response.ok) throw new Error('City or district search failed.');
+    const data = await response.json();
+    return data.results || [];
+  });
 }
 
 async function geocodeIndianPin(pinCode) {
+  return cachedGeocode(`pin:${pinCode}`, () => lookupIndianPin(pinCode));
+}
+
+async function lookupIndianPin(pinCode) {
   try {
-    const response = await fetch(`https://api.pincodeapi.in/api/v1/pincode/${pinCode}`);
+    const response = await fetchWithTimeout(`https://api.pincodeapi.in/api/v1/pincode/${pinCode}`);
     if (response.ok) {
       const payload = await response.json();
       const offices = payload?.success ? (payload.data?.post_offices || []) : [];
@@ -148,7 +257,7 @@ async function geocodeIndianPin(pinCode) {
 
   let offices = [];
   try {
-    const response = await fetch(`https://api.postalpincode.in/pincode/${pinCode}`);
+      const response = await fetchWithTimeout(`https://api.postalpincode.in/pincode/${pinCode}`);
     if (response.ok) {
       const data = await response.json();
       offices = data?.[0]?.Status === 'Success' ? (data[0].PostOffice || []) : [];
@@ -378,6 +487,8 @@ function WeatherCard({ report, featured = false, history = [], logoURL = '' }) {
 }
 
 async function reverseLocation(latitude, longitude) {
+  const cacheKey = `reverse:${latitude.toFixed(3)}:${longitude.toFixed(3)}`;
+  return cachedGeocode(cacheKey, async () => {
   const params = new URLSearchParams({
     format: 'jsonv2',
     lat: String(latitude),
@@ -385,7 +496,7 @@ async function reverseLocation(latitude, longitude) {
     addressdetails: '1',
     zoom: '18',
   });
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`);
   if (!response.ok) return null;
   const data = await response.json();
   const address = data.address || {};
@@ -395,6 +506,7 @@ async function reverseLocation(latitude, longitude) {
     country: address.country || '',
     pinCode: address.postcode || '',
   };
+  });
 }
 
 async function fetchForecastForPlace(place) {
@@ -406,35 +518,49 @@ async function fetchForecastForPlace(place) {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    current: 'temperature_2m,weather_code,wind_speed_10m',
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code,wind_speed_10m_max',
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,rain_sum,weather_code,wind_speed_10m_max,sunrise,sunset',
     timezone: 'auto',
     past_days: '5',
     forecast_days: '6',
   });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
   if (!response.ok) throw new Error('Weather service is busy. Try again.');
   const data = await response.json();
   const days = data.daily?.time || [];
-  const mapDay = (date, index) => ({
-    id: `live-${place.latitude}-${place.longitude}-${date}`,
-    reportDate: date,
-    city: place.name || place.city || 'Current Location',
-    state: place.admin1 || place.state || '',
-    district: place.admin2 || place.district || '',
-    country: place.country || '',
-    pinCode: place.pinCode || '',
-    latitude: place.latitude,
-    longitude: place.longitude,
-    temperatureMax: data.daily?.temperature_2m_max?.[index] ?? null,
-    temperatureMin: data.daily?.temperature_2m_min?.[index] ?? null,
-    temperatureCurrent: date === data.current?.time?.slice(0, 10) ? data.current?.temperature_2m ?? null : null,
-    precipitationProbability: data.daily?.precipitation_probability_max?.[index] ?? null,
-    rainfall: data.daily?.rain_sum?.[index] ?? null,
-    windSpeed: data.daily?.wind_speed_10m_max?.[index] ?? (date === data.current?.time?.slice(0, 10) ? data.current?.wind_speed_10m ?? null : null),
-    weatherCode: date === data.current?.time?.slice(0, 10) ? data.current?.weather_code ?? data.daily?.weather_code?.[index] ?? null : data.daily?.weather_code?.[index] ?? null,
-    source: 'Open-Meteo live search',
-  });
+  const mapDay = (date, index) => {
+    const isCurrent = date === data.current?.time?.slice(0, 10);
+    return {
+      id: `live-${place.latitude}-${place.longitude}-${date}`,
+      reportDate: date,
+      city: place.name || place.city || 'Current Location',
+      state: place.admin1 || place.state || '',
+      district: place.admin2 || place.district || '',
+      country: place.country || '',
+      pinCode: place.pinCode || '',
+      latitude: place.latitude,
+      longitude: place.longitude,
+      temperatureMax: data.daily?.temperature_2m_max?.[index] ?? null,
+      temperatureMin: data.daily?.temperature_2m_min?.[index] ?? null,
+      temperatureCurrent: isCurrent ? data.current?.temperature_2m ?? null : null,
+      feelsLike: isCurrent ? data.current?.apparent_temperature ?? null : null,
+      relativeHumidity: isCurrent ? data.current?.relative_humidity_2m ?? null : null,
+      currentPrecipitation: isCurrent ? data.current?.precipitation ?? null : null,
+      pressure: isCurrent ? data.current?.surface_pressure ?? data.current?.pressure_msl ?? null : null,
+      windDirection: isCurrent ? data.current?.wind_direction_10m ?? null : null,
+      windGusts: isCurrent ? data.current?.wind_gusts_10m ?? null : null,
+      precipitationProbability: data.daily?.precipitation_probability_max?.[index] ?? null,
+      rainfall: data.daily?.rain_sum?.[index] ?? null,
+      windSpeed: isCurrent ? data.current?.wind_speed_10m ?? null : data.daily?.wind_speed_10m_max?.[index] ?? null,
+      weatherCode: isCurrent ? data.current?.weather_code ?? data.daily?.weather_code?.[index] ?? null : data.daily?.weather_code?.[index] ?? null,
+      sunrise: data.daily?.sunrise?.[index] ?? null,
+      sunset: data.daily?.sunset?.[index] ?? null,
+      observationTime: isCurrent ? data.current?.time ?? null : null,
+      timezone: data.timezone || 'local time',
+      updatedAt: isCurrent ? new Date().toISOString() : null,
+      source: 'Open-Meteo live search',
+    };
+  };
   const today = data.current?.time?.slice(0, 10) || new Intl.DateTimeFormat('en-CA', { timeZone: data.timezone || 'Asia/Kolkata' }).format(new Date());
   const todayIndex = Math.max(0, days.findIndex((date) => date === today));
   const report = mapDay(days[todayIndex], todayIndex);
@@ -455,6 +581,9 @@ export default function WeatherPage() {
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [weatherError, setWeatherError] = useState('');
+  const [retryPlace, setRetryPlace] = useState(null);
+  const requestSequence = useRef(0);
 
   function loadReports() {
     setHasSearched(false);
@@ -479,12 +608,26 @@ export default function WeatherPage() {
   const featured = liveReport || (!hasSearched ? latestReports[0] : null);
   const featuredHistory = liveReport ? liveHistory : fiveDaySaved.filter((item) => item.city === featured?.city).slice(0, 5);
   const gridReports = hasSearched ? [] : latestReports.filter((item) => item.id !== featured?.id);
+  const mapLocation = useMemo(() => (featured ? {
+    ...featured,
+    name: [featured.city, featured.district, featured.state].filter(Boolean).join(', '),
+    summary: weatherSummary(featured),
+  } : null), [featured]);
 
   async function searchCity(event, forcedQuery = '') {
     event?.preventDefault?.();
     const term = forcedQuery || query.trim();
-    if (!term) return;
+    if (!term) {
+      toast.error('Enter a city, district, or six-digit PIN code to search.');
+      return;
+    }
+    if (/^\d+$/.test(term) && term.length !== 6) {
+      toast.error('Indian PIN codes contain six digits.');
+      return;
+    }
+    const requestId = ++requestSequence.current;
     setHasSearched(true);
+    setWeatherError('');
     setSearching(true);
     setLiveReport(null);
     setLiveHistory([]);
@@ -515,22 +658,33 @@ export default function WeatherPage() {
         seen.add(key);
         return true;
       }).slice(0, 12);
+      if (requestId !== requestSequence.current) return;
       setResults(combined);
-      if (!combined.length) toast.error(/^\d{6}$/.test(term)
-        ? 'No place found for this PIN code. Check the six digits and try again.'
-        : 'No matching place found. Try a city name, or district + state, such as Puri Odisha.');
+      if (!combined.length) {
+        const message = /^\d{6}$/.test(term)
+          ? 'No place found for this PIN code. Check the six digits and try again.'
+          : 'No matching place found. Try a city name, or district + state, such as Puri Odisha.';
+        setWeatherError(message);
+        toast.error(message);
+      }
     } catch (error) {
+      if (requestId !== requestSequence.current) return;
+      setWeatherError(error.message || 'City search failed.');
       toast.error(savedMatches.length ? 'Could not search right now. Choose a saved location below.' : error.message || 'City search failed.');
       setResults(savedMatches);
     } finally {
-      setSearching(false);
+      if (requestId === requestSequence.current) setSearching(false);
     }
   }
 
   async function loadPlace(place) {
+    const requestId = ++requestSequence.current;
+    setWeatherError('');
+    setRetryPlace(place);
     setSearching(true);
     try {
       const { report, history, forecast } = await fetchForecastForPlace(place);
+      if (requestId !== requestSequence.current) return;
       setLiveReport(report);
       setLiveHistory(history);
       setLiveForecast(forecast);
@@ -538,9 +692,11 @@ export default function WeatherPage() {
       setResults([]);
       toast.success(`Live 5-day weather loaded for ${cityLabel(place)}.`);
     } catch (error) {
+      if (requestId !== requestSequence.current) return;
+      setWeatherError(error.message || 'Weather failed.');
       toast.error(error.message || 'Weather failed.');
     } finally {
-      setSearching(false);
+      if (requestId === requestSequence.current) setSearching(false);
     }
   }
 
@@ -552,9 +708,12 @@ export default function WeatherPage() {
 
   async function selectPopularLocation(location) {
     if (searching) return;
+    const requestId = ++requestSequence.current;
     const label = `${location.name}, ${location.region}`;
     setQuery(label);
     setHasSearched(true);
+    setWeatherError('');
+    setRetryPlace(null);
     setLiveReport(null);
     setLiveHistory([]);
     setLiveForecast([]);
@@ -566,7 +725,9 @@ export default function WeatherPage() {
       const match = places.find((place) => normalizePlaceName(place.name) === normalizePlaceName(location.name)
         && (location.region === 'India' || normalizePlaceName(place.admin1 || place.admin2 || '') === expectedRegion));
       if (!match) throw new Error(`Couldn't find ${label}. Use the search field to choose a matching place.`);
+      setRetryPlace(match);
       const { report, history, forecast } = await fetchForecastForPlace(match);
+      if (requestId !== requestSequence.current) return;
       setLiveReport({
         ...report,
         city: location.name,
@@ -584,9 +745,11 @@ export default function WeatherPage() {
       })));
       toast.success(`Weather loaded for ${label}.`);
     } catch (error) {
+      if (requestId !== requestSequence.current) return;
+      setWeatherError(error.message || `Weather search failed for ${label}.`);
       toast.error(error.message || `Weather search failed for ${label}.`);
     } finally {
-      setSearching(false);
+      if (requestId === requestSequence.current) setSearching(false);
     }
   }
 
@@ -596,6 +759,8 @@ export default function WeatherPage() {
       return;
     }
     setHasSearched(true);
+    const requestId = ++requestSequence.current;
+    setWeatherError('');
     setLiveReport(null);
     setLiveHistory([]);
     setLiveForecast([]);
@@ -606,27 +771,37 @@ export default function WeatherPage() {
           const latitude = position.coords.latitude;
           const longitude = position.coords.longitude;
           const place = await reverseLocation(latitude, longitude).catch(() => null);
-          const { report, history, forecast } = await fetchForecastForPlace({
+          if (requestId !== requestSequence.current) return;
+          const resolvedPlace = {
             name: place?.name || 'Current Location',
             state: place?.state || '',
             country: place?.country || 'Detected by browser',
             pinCode: place?.pinCode || '',
             latitude,
             longitude,
-          });
+          };
+          setRetryPlace(resolvedPlace);
+          const { report, history, forecast } = await fetchForecastForPlace(resolvedPlace);
+          if (requestId !== requestSequence.current) return;
           setLiveReport(report);
           setLiveHistory(history);
           setLiveForecast(forecast);
+          setQuery(cityLabel(resolvedPlace));
           toast.success(place?.pinCode ? `Location weather loaded. PIN: ${place.pinCode}` : 'Current location weather loaded.');
         } catch (error) {
-          toast.error(error.message || 'Location weather failed.');
+          if (requestId === requestSequence.current) {
+            setWeatherError(error.message || 'Location weather failed.');
+            toast.error(error.message || 'Location weather failed.');
+          }
         } finally {
-          setLocating(false);
+          if (requestId === requestSequence.current) setLocating(false);
         }
       },
       () => {
-        setLocating(false);
-        toast.error('Location permission denied. Search your district manually.');
+        if (requestId === requestSequence.current) {
+          setLocating(false);
+          toast.error('Location permission denied. Search your district manually.');
+        }
       },
       { enableHighAccuracy: true, timeout: 12000 }
     );
@@ -680,8 +855,11 @@ export default function WeatherPage() {
                   autoComplete="off"
                   value={query}
                   onChange={(event) => {
+                    requestSequence.current += 1;
                     setQuery(event.target.value);
                     setResults([]);
+                    setSearching(false);
+                    setWeatherError('');
                   }}
                 />
               </label>
@@ -744,6 +922,10 @@ export default function WeatherPage() {
             <Activity className="text-brand-red" />
           </div>
           <WeatherCard report={featured} featured history={featuredHistory} logoURL={settings.logoURL} />
+          <div className="mt-5 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <WeatherLocationMap location={mapLocation} />
+            <LocationWeatherTable report={featured} searchedQuery={liveReport ? query : ''} />
+          </div>
           {liveForecast.length > 0 && (
             <section className="forecast-strip mt-6" aria-label="Five-day weather forecast">
               <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -792,11 +974,20 @@ export default function WeatherPage() {
             ))}
           </div>
         </section>
+      ) : results.length ? null : searching || locating ? (
+        <section className="news-card flex min-h-40 flex-col items-center justify-center p-8 text-center" aria-live="polite">
+          <RefreshCw className="animate-spin text-brand-red" size={28} />
+          <h2 className="mt-3 text-lg font-extrabold">Finding the location and weather</h2>
+          <p className="mt-1 text-sm text-gray-600">This can take a few seconds while the location is resolved.</p>
+        </section>
       ) : hasSearched ? (
         <section className="news-card p-8 text-center">
           <CloudSun className="mx-auto text-brand-red" size={38} />
-          <h2 className="mt-3 text-xl font-extrabold">No weather report selected</h2>
-          <p className="mt-2 text-sm text-gray-600">Choose a search result or try another city or PIN code.</p>
+          <h2 className="mt-3 text-xl font-extrabold">{weatherError ? 'Could not load this location' : 'No weather report selected'}</h2>
+          <p className="mt-2 text-sm text-gray-600">{weatherError || 'Choose a search result or try another city or PIN code.'}</p>
+          <button className="btn-secondary mt-4" onClick={() => (retryPlace ? loadPlace(retryPlace) : searchCity())}>
+            <RefreshCw size={15} /> Retry
+          </button>
         </section>
       ) : (
         <section className="news-card p-8 text-center">
