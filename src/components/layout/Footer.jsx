@@ -35,6 +35,7 @@ export default function Footer() {
         <div>
           <h3 className="font-bold">Trust</h3>
           <div className="mt-3 grid gap-2 text-sm text-gray-300">
+            <Link to="/reports" className="hover:text-white">Public Reports &amp; Data</Link>
             <Link to="/about" className="hover:text-white">About</Link>
             <Link to="/contact" className="hover:text-white">Contact</Link>
             <Link to="/founder" className="hover:text-white">Founder</Link>

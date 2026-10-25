@@ -15,6 +15,7 @@ const CategoryPage = lazy(() => import('./pages/CategoryPage.jsx'));
 const SearchPage = lazy(() => import('./pages/SearchPage.jsx'));
 const ContactPage = lazy(() => import('./pages/ContactPage.jsx'));
 const WeatherPage = lazy(() => import('./pages/WeatherPage.jsx'));
+const PublicReportsPage = lazy(() => import('./pages/PublicReportsPage.jsx'));
 const FounderPage = lazy(() => import('./pages/FounderPage.jsx'));
 const TeamPage = lazy(() => import('./pages/TeamPage.jsx'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage.jsx'));
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/weather" element={<WeatherPage />} />
+            <Route path="/reports" element={<PublicReportsPage />} />
             <Route path="/founder" element={<FounderPage />} />
             <Route path="/team" element={<TeamPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
