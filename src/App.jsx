@@ -16,6 +16,9 @@ const SearchPage = lazy(() => import('./pages/SearchPage.jsx'));
 const ContactPage = lazy(() => import('./pages/ContactPage.jsx'));
 const WeatherPage = lazy(() => import('./pages/WeatherPage.jsx'));
 const PublicReportsPage = lazy(() => import('./pages/PublicReportsPage.jsx'));
+const PublicReportPage = lazy(() => import('./pages/PublicReportPage.jsx'));
+const PublicRankingsPage = lazy(() => import('./pages/PublicRankingsPage.jsx'));
+const PublicRepresentativesPage = lazy(() => import('./pages/PublicRepresentativesPage.jsx'));
 const FounderPage = lazy(() => import('./pages/FounderPage.jsx'));
 const TeamPage = lazy(() => import('./pages/TeamPage.jsx'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage.jsx'));
@@ -39,6 +42,9 @@ const SettingsPage = lazy(() => import('./admin/pages/SettingsPage.jsx'));
 const ContactMessageManager = lazy(() => import('./admin/pages/ContactMessageManager.jsx'));
 const VisitorAnalytics = lazy(() => import('./admin/pages/VisitorAnalytics.jsx'));
 const WeatherManager = lazy(() => import('./admin/pages/WeatherManager.jsx'));
+const PublicReportManager = lazy(() => import('./admin/pages/PublicReportManager.jsx'));
+const PublicDataManager = lazy(() => import('./admin/pages/PublicDataManager.jsx'));
+const PublicRepresentativeManager = lazy(() => import('./admin/pages/PublicRepresentativeManager.jsx'));
 
 export default function App() {
   if (!supabaseReady) return <SupabaseSetupNotice />;
@@ -56,6 +62,9 @@ export default function App() {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/weather" element={<WeatherPage />} />
             <Route path="/reports" element={<PublicReportsPage />} />
+            <Route path="/reports/:slug" element={<PublicReportPage />} />
+            <Route path="/rankings" element={<PublicRankingsPage />} />
+            <Route path="/representatives" element={<PublicRepresentativesPage />} />
             <Route path="/founder" element={<FounderPage />} />
             <Route path="/team" element={<TeamPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -109,6 +118,9 @@ export default function App() {
             <Route path="contact-messages" element={<ProtectedRoute roles={['admin', 'superadmin']}><ContactMessageManager /></ProtectedRoute>} />
             <Route path="visitors" element={<ProtectedRoute roles={['superadmin']}><VisitorAnalytics /></ProtectedRoute>} />
             <Route path="weather" element={<ProtectedRoute roles={['admin', 'superadmin']}><WeatherManager /></ProtectedRoute>} />
+            <Route path="reports" element={<ProtectedRoute roles={['admin', 'superadmin']}><PublicReportManager /></ProtectedRoute>} />
+            <Route path="public-data" element={<ProtectedRoute roles={['admin', 'superadmin']}><PublicDataManager /></ProtectedRoute>} />
+            <Route path="representatives" element={<ProtectedRoute roles={['admin', 'superadmin']}><PublicRepresentativeManager /></ProtectedRoute>} />
             <Route path="ads" element={<ProtectedRoute roles={['admin', 'superadmin']}><AdManager /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute roles={['admin', 'superadmin']}><SettingsPage /></ProtectedRoute>} />
           </Route>

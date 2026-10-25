@@ -1,4 +1,4 @@
-import { BarChart3, CloudSun, Eye, FileText, Inbox, LayoutDashboard, MessageSquare, Newspaper, Settings, ShieldCheck, Tag, Users } from 'lucide-react';
+import { BarChart3, CloudSun, Database, Eye, FileText, Inbox, LayoutDashboard, MessageSquare, Newspaper, Settings, ShieldCheck, Tag, Users, Vote } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -11,6 +11,9 @@ const links = [
   ['Contact Inbox', '/admin/contact-messages', Inbox, 'admin'],
   ['Visitors', '/admin/visitors', Eye, 'superadmin'],
   ['Weather', '/admin/weather', CloudSun, 'admin'],
+  ['Public Reports', '/admin/reports', FileText, 'admin'],
+  ['Rankings & Data', '/admin/public-data', Database, 'admin'],
+  ['Representatives', '/admin/representatives', Vote, 'admin'],
   ['Ads', '/admin/ads', BarChart3, 'admin'],
   ['Settings', '/admin/settings', Settings, 'admin'],
 ];

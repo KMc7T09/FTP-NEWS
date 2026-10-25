@@ -71,6 +71,57 @@ export function mapCategory(row = {}) {
   };
 }
 
+export function mapPublicReportCategory(row = {}) {
+  return {
+    id: row.id,
+    name: row.name || '',
+    slug: row.slug || '',
+    description: row.description || '',
+    isActive: Boolean(row.is_active),
+  };
+}
+
+export function mapPublicReportSource(row = {}) {
+  return {
+    id: row.id,
+    name: row.name || '',
+    websiteURL: row.website_url || '',
+    organizationType: row.organization_type || '',
+    jurisdiction: row.jurisdiction || '',
+    notes: row.notes || '',
+    isActive: Boolean(row.is_active),
+  };
+}
+
+export function mapPublicReport(row = {}) {
+  return {
+    id: row.id,
+    title: row.title || '',
+    slug: row.slug || '',
+    summary: row.summary || '',
+    body: row.body || '',
+    categoryId: row.category_id || '',
+    category: row.category ? mapPublicReportCategory(row.category) : null,
+    sourceId: row.source_id || '',
+    source: row.source ? mapPublicReportSource(row.source) : null,
+    sourceURL: row.source_url || '',
+    documentURL: row.document_url || '',
+    publicationDate: row.publication_date || '',
+    publicationYear: row.publication_year || null,
+    referenceYear: row.reference_year || null,
+    methodology: row.methodology || '',
+    scopeNotes: row.scope_notes || '',
+    limitations: row.limitations || '',
+    verificationStatus: row.verification_status || 'unverified',
+    status: row.status || 'draft',
+    verifiedAt: row.verified_at || null,
+    publishedAt: row.published_at || null,
+    archivedAt: row.archived_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
 export function mapComment(row = {}) {
   return {
     id: row.id,

@@ -1,6 +1,7 @@
 const SITE_URL = 'https://the-ftp-news.netlify.app';
 const STATIC_PATHS = [
   '/', '/about', '/founder', '/team', '/contact', '/weather',
+  '/reports', '/rankings', '/representatives',
   '/category/politics', '/category/india', '/category/odisha', '/category/world',
   '/category/opinion', '/category/fact-check', '/category/youth',
   '/privacy-policy', '/terms', '/editorial-policy', '/disclaimer',
@@ -43,6 +44,21 @@ exports.handler = async (event) => {
       if (rows.length < pageSize) break;
     }
 
+    const reportResponse = await fetch(`${supabaseUrl}/rest/v1/public_reports?status=eq.published&select=slug,updated_at,published_at&order=published_at.desc`, {
+      headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+      signal: AbortSignal.timeout(12000),
+    });
+    let reports = [];
+    if (reportResponse.ok) {
+      reports = await reportResponse.json();
+    } else {
+      const reportError = await reportResponse.text();
+      if (!(reportResponse.status === 404 || /public_reports|schema cache|PGRST205/i.test(reportError))) {
+        throw new Error(`Published reports query failed (${reportResponse.status}): ${reportError.slice(0, 240)}`);
+      }
+      console.warn('Public reports table is not available yet; omitting report URLs from sitemap.');
+    }
+
     const staticUrls = STATIC_PATHS.map((path) => `<url><loc>${SITE_URL}${xmlEscape(path)}</loc></url>`);
     const articleUrls = articles
       .filter((article) => article.slug)
@@ -50,7 +66,13 @@ exports.handler = async (event) => {
         const lastmod = article.updated_at || article.published_at;
         return `<url><loc>${SITE_URL}/article/${xmlEscape(encodeURIComponent(article.slug))}</loc>${lastmod ? `<lastmod>${xmlEscape(new Date(lastmod).toISOString())}</lastmod>` : ''}</url>`;
       });
-    const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls.join('')}${articleUrls.join('')}</urlset>`;
+    const reportUrls = reports
+      .filter((report) => report.slug)
+      .map((report) => {
+        const lastmod = report.updated_at || report.published_at;
+        return `<url><loc>${SITE_URL}/reports/${xmlEscape(encodeURIComponent(report.slug))}</loc>${lastmod ? `<lastmod>${xmlEscape(new Date(lastmod).toISOString())}</lastmod>` : ''}</url>`;
+      });
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls.join('')}${articleUrls.join('')}${reportUrls.join('')}</urlset>`;
     return response(200, xml, 'application/xml; charset=utf-8');
   } catch (error) {
     console.error('Sitemap generation failed:', error.message || error);

@@ -13,6 +13,8 @@ const navItems = [
   ['Fact Check', '/category/fact-check'],
   ['Youth', '/category/youth'],
   ['Reports & Data', '/reports'],
+  ['Rankings', '/rankings'],
+  ['Representatives', '/representatives'],
   ['Weather', '/weather'],
 ];
 

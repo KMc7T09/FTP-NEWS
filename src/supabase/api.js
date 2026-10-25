@@ -1,5 +1,5 @@
 import { supabase, supabaseReady } from './config.js';
-import { articleToRow, mapArticle, mapCategory, mapComment, mapProfile, mapWeatherReport } from './mappers.js';
+import { articleToRow, mapArticle, mapCategory, mapComment, mapProfile, mapPublicReport, mapPublicReportCategory, mapPublicReportSource, mapWeatherReport } from './mappers.js';
 
 function requireSupabase() {
   if (!supabaseReady || !supabase) throw new Error('Supabase is not configured.');
@@ -218,6 +218,305 @@ export async function deleteCategory(id) {
   const client = requireSupabase();
   const { error } = await client.from('categories').delete().eq('id', id);
   if (error) throw error;
+}
+
+const publicReportJoin = 'id,title,slug,summary,body,category_id,source_id,source_url,document_url,publication_date,publication_year,reference_year,methodology,scope_notes,limitations,verification_status,verified_at,published_at,updated_at,category:public_report_categories(id,name,slug,description,is_active),source:public_report_sources(id,name,website_url,organization_type,jurisdiction,notes,is_active)';
+
+export async function listPublishedReports({ limit = 300 } = {}) {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_reports')
+    .select(publicReportJoin)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data || []).map(mapPublicReport);
+}
+
+export async function getPublishedReportBySlug(slug) {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_reports')
+    .select(publicReportJoin)
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapPublicReport(data) : null;
+}
+
+export async function listPublicReportCategories({ includeInactive = false } = {}) {
+  const client = requireSupabase();
+  let query = client.from('public_report_categories').select('id,name,slug,description,is_active').order('name');
+  if (!includeInactive) query = query.eq('is_active', true);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(mapPublicReportCategory);
+}
+
+async function callAdminReportsFunction({ method = 'GET', resource = 'reports', id = '', data = null } = {}) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error('Sign in with an admin account to manage public reports.');
+  const query = new URLSearchParams({ resource });
+  const response = await fetch(`/.netlify/functions/admin-reports?${query}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: data ? JSON.stringify({ resource, id, data }) : undefined,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) throw new Error(payload.error || `Report manager request failed (${response.status}).`);
+  return payload;
+}
+
+export async function listAdminPublicReports() {
+  const result = await callAdminReportsFunction({ resource: 'reports' });
+  return (result.records || []).map(mapPublicReport);
+}
+
+export async function listAdminPublicReportCategories() {
+  const result = await callAdminReportsFunction({ resource: 'categories' });
+  return (result.records || []).map(mapPublicReportCategory);
+}
+
+export async function listAdminPublicReportSources() {
+  const result = await callAdminReportsFunction({ resource: 'sources' });
+  return (result.records || []).map(mapPublicReportSource);
+}
+
+export async function saveAdminPublicReport(data, id = '') {
+  const result = await callAdminReportsFunction({ method: id ? 'PATCH' : 'POST', resource: 'report', id, data });
+  return mapPublicReport(result.record);
+}
+
+export async function saveAdminPublicReportCategory(data, id = '') {
+  const result = await callAdminReportsFunction({ method: id ? 'PATCH' : 'POST', resource: 'category', id, data });
+  return mapPublicReportCategory(result.record);
+}
+
+export async function saveAdminPublicReportSource(data, id = '') {
+  const result = await callAdminReportsFunction({ method: id ? 'PATCH' : 'POST', resource: 'source', id, data });
+  return mapPublicReportSource(result.record);
+}
+
+const publicDataEditionSelect = [
+  'id,indicator_id,source_id,report_id,edition_label,publication_date,reference_period_start,reference_period_end',
+  'source_url,document_url,methodology,scope_notes,limitations,verification_status,status,verified_at,published_at,updated_at',
+  'indicator:public_data_indicators(id,slug,name,definition,unit,geography_level,direction,category:public_report_categories(id,name,slug))',
+  'source:public_report_sources(id,name,website_url,jurisdiction)',
+  'report:public_reports(id,title,slug)',
+  'observations:public_data_observations(id,geography_code,geography_name,geography_type,value,value_text,unit,published_rank,rank_scope,is_missing,notes,source_page)',
+].join(',');
+
+export async function listPublishedPublicDataEditions() {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_data_editions')
+    .select(publicDataEditionSelect)
+    .eq('status', 'published')
+    .eq('verification_status', 'verified')
+    .order('publication_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listAdminPublicDataEditions() {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_data_editions')
+    .select(publicDataEditionSelect)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listAdminPublicDataIndicators() {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_data_indicators')
+    .select('*,category:public_report_categories(id,name,slug)')
+    .order('name');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createAdminPublicDataIndicator(values) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const userId = sessionData.session?.user?.id;
+  const row = {
+    name: String(values.name || '').trim(),
+    slug: String(values.slug || '').trim(),
+    definition: String(values.definition || '').trim(),
+    unit: String(values.unit || '').trim(),
+    category_id: values.categoryId || null,
+    geography_level: values.geographyLevel || 'state',
+    direction: values.direction || 'neutral',
+    notes: String(values.notes || '').trim(),
+    created_by: userId,
+    updated_by: userId,
+  };
+  const { data, error } = await client.from('public_data_indicators').insert(row).select('*,category:public_report_categories(id,name,slug)').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function createAdminPublicDataEdition(values) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const userId = sessionData.session?.user?.id;
+  const row = {
+    indicator_id: values.indicatorId,
+    source_id: values.sourceId,
+    report_id: values.reportId || null,
+    edition_label: String(values.editionLabel || '').trim(),
+    publication_date: values.publicationDate || null,
+    reference_period_start: values.referencePeriodStart || null,
+    reference_period_end: values.referencePeriodEnd || null,
+    source_url: String(values.sourceURL || '').trim(),
+    document_url: String(values.documentURL || '').trim(),
+    methodology: String(values.methodology || '').trim(),
+    scope_notes: String(values.scopeNotes || '').trim(),
+    limitations: String(values.limitations || '').trim(),
+    created_by: userId,
+    updated_by: userId,
+  };
+  const { data, error } = await client.from('public_data_editions').insert(row).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateAdminPublicDataEdition(id, updates) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const userId = sessionData.session?.user?.id;
+  const allowed = ['verification_status', 'status'];
+  const row = Object.fromEntries(allowed.filter((key) => updates[key] !== undefined).map((key) => [key, updates[key]]));
+  row.updated_by = userId;
+  if (row.verification_status === 'verified') {
+    row.verified_by = userId;
+    row.verified_at = new Date().toISOString();
+  }
+  const { data, error } = await client.from('public_data_editions').update(row).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function importAdminPublicDataObservations(editionId, rows) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData.session?.user?.id) throw new Error('Sign in as an administrator before importing observations.');
+  const { data: edition, error: editionError } = await client.from('public_data_editions')
+    .select('indicator:public_data_indicators(geography_level)')
+    .eq('id', editionId)
+    .single();
+  if (editionError) throw editionError;
+  const geographyLevel = edition.indicator?.geography_level;
+  const payload = rows.map((row) => ({
+    edition_id: editionId,
+    geography_code: String(row.geography_code || '').trim(),
+    geography_name: String(row.geography_name || '').trim(),
+    geography_type: String(row.geography_type || '').trim().toLowerCase(),
+    value: row.value === '' || row.value == null ? null : Number(row.value),
+    value_text: String(row.value_text || '').trim() || null,
+    unit: String(row.unit || '').trim(),
+    published_rank: row.published_rank === '' || row.published_rank == null ? null : Number(row.published_rank),
+    rank_scope: String(row.rank_scope || '').trim(),
+    is_missing: row.is_missing === true || String(row.is_missing).toLowerCase() === 'true',
+    notes: String(row.notes || '').trim(),
+    source_page: String(row.source_page || '').trim(),
+  }));
+  if (!payload.length) throw new Error('The import file contains no data rows.');
+  if (payload.some((row) => !row.geography_code || !row.geography_name || !['country', 'state', 'ut', 'district'].includes(row.geography_type))) {
+    throw new Error('Every row needs geography_code, geography_name, and geography_type (country/state/ut/district).');
+  }
+  const validGeography = (type) => geographyLevel === 'mixed'
+    || (geographyLevel === 'state' && ['state', 'ut'].includes(type))
+    || geographyLevel === type;
+  if (payload.some((row) => !validGeography(row.geography_type))) {
+    throw new Error(`This indicator is configured for ${geographyLevel} data; the CSV contains a different geography type.`);
+  }
+  if (payload.some((row) => row.value !== null && !Number.isFinite(row.value))) throw new Error('Numeric values must be valid numbers; leave missing values blank and mark is_missing=true.');
+  if (payload.some((row) => row.published_rank !== null && (!Number.isInteger(row.published_rank) || row.published_rank < 1))) throw new Error('Published rank must be a positive whole number.');
+  const seen = new Set();
+  if (payload.some((row) => seen.has(row.geography_code) || !seen.add(row.geography_code))) throw new Error('Duplicate geography_code found in this import.');
+  const { data, error } = await client.from('public_data_observations')
+    .upsert(payload, { onConflict: 'edition_id,geography_code' })
+    .select('id');
+  if (error) throw error;
+  return data?.length || payload.length;
+}
+
+const representativeSelect = '*,source:public_report_sources(id,name,website_url)';
+
+export async function listPublishedPublicRepresentatives() {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_representatives').select(representativeSelect)
+    .eq('status', 'published').eq('verification_status', 'verified').order('full_name');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function listAdminPublicRepresentatives() {
+  const client = requireSupabase();
+  const { data, error } = await client.from('public_representatives').select(representativeSelect)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveAdminPublicRepresentative(values, id = '') {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const userId = sessionData.session?.user?.id;
+  if (!userId) throw new Error('Sign in with an authorized admin account.');
+  const row = {
+    slug: String(values.slug || '').trim(),
+    full_name: String(values.full_name || '').trim(),
+    office_title: String(values.office_title || '').trim(),
+    constituency: String(values.constituency || '').trim(),
+    state_or_ut: String(values.state_or_ut || '').trim(),
+    party: String(values.party || '').trim(),
+    party_as_of: values.party_as_of || null,
+    term_start: values.term_start || null,
+    term_end: values.term_end || null,
+    summary: String(values.summary || '').trim(),
+    election_results: String(values.election_results || '').trim(),
+    asset_disclosure: String(values.asset_disclosure || '').trim(),
+    attendance_participation: String(values.attendance_participation || '').trim(),
+    documented_public_work: String(values.documented_public_work || '').trim(),
+    source_id: values.source_id,
+    source_url: String(values.source_url || '').trim(),
+    updated_by: userId,
+  };
+  if (!row.full_name || !row.slug || !row.source_id || !row.source_url) throw new Error('Name, slug, publisher and official source URL are required.');
+  const query = id
+    ? client.from('public_representatives').update(row).eq('id', id)
+    : client.from('public_representatives').insert({ ...row, created_by: userId });
+  const { data, error } = await query.select(representativeSelect).single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateAdminPublicRepresentativeStatus(id, updates) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const userId = sessionData.session?.user?.id;
+  if (!userId) throw new Error('Sign in with an authorized admin account.');
+  const row = { updated_by: userId };
+  if (updates.status) row.status = updates.status;
+  if (updates.verification_status) {
+    row.verification_status = updates.verification_status;
+    row.verified_by = updates.verification_status === 'verified' ? userId : null;
+    row.verified_at = updates.verification_status === 'verified' ? new Date().toISOString() : null;
+  }
+  const { data, error } = await client.from('public_representatives').update(row).eq('id', id).select(representativeSelect).single();
+  if (error) throw error;
+  return data;
 }
 
 export async function listComments({ approvedOnly = false, articleId = '', limit = 200 } = {}) {
