@@ -449,6 +449,23 @@ export async function importAdminPublicDataObservations(editionId, rows) {
   return data?.length || payload.length;
 }
 
+export async function previewOfficialPublicDataImport(payload) {
+  const client = requireSupabase();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error('Sign in with an administrator account before fetching official data.');
+  const response = await fetch('/.netlify/functions/admin-public-data-import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(payload),
+  });
+  let result;
+  try { result = await response.json(); } catch { throw new Error(`Official data API returned an unreadable response (${response.status}).`); }
+  if (!response.ok || !result?.ok) throw new Error(result?.error || `Official data preview failed (${response.status}).`);
+  return result;
+}
+
 const representativeSelect = '*,source:public_report_sources(id,name,website_url)';
 
 export async function listPublishedPublicRepresentatives() {

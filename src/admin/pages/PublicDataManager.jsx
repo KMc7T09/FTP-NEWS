@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Archive, Check, Download, FileSpreadsheet, Plus, RefreshCw, Upload } from 'lucide-react';
+import { Archive, Check, Download, FileSpreadsheet, Plus, RefreshCw, Upload, CloudDownload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
@@ -11,6 +11,7 @@ import {
   listAdminPublicReportCategories,
   listAdminPublicReportSources,
   listAdminPublicReports,
+  previewOfficialPublicDataImport,
   updateAdminPublicDataEdition,
 } from '../../supabase/api.js';
 
@@ -61,6 +62,10 @@ export default function PublicDataManager() {
   const [selectedEdition, setSelectedEdition] = useState('');
   const [importRows, setImportRows] = useState([]);
   const [fileName, setFileName] = useState('');
+  const [provider, setProvider] = useState('world-bank');
+  const [officialForm, setOfficialForm] = useState({ indicatorCode: '', year: String(new Date().getFullYear() - 1), resourceId: '', geographyType: 'state', codeField: '', nameField: '', valueField: '', unitField: '', rankField: '' });
+  const [officialLoading, setOfficialLoading] = useState(false);
+  const [officialSource, setOfficialSource] = useState('');
   const [term, setTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,6 +151,41 @@ export default function PublicDataManager() {
     finally { setSaving(false); }
   }
 
+  async function fetchOfficialPreview(event) {
+    event.preventDefault();
+    if (!selectedEdition) { toast.error('Select the draft dataset edition that will receive these rows.'); return; }
+    const targetEdition = editions.find((item) => item.id === selectedEdition);
+    if (!targetEdition || targetEdition.status !== 'draft' || targetEdition.verification_status === 'verified') {
+      toast.error('Official API import is allowed only into an unverified draft edition.');
+      return;
+    }
+    const level = targetEdition?.indicator?.geography_level;
+    if (provider === 'world-bank' && level !== 'country' && level !== 'mixed') {
+      toast.error('World Bank rows are country-level. Select an indicator configured for Country or Mixed geography.');
+      return;
+    }
+    if (provider === 'data-gov-in' && level !== officialForm.geographyType && !(level === 'state' && officialForm.geographyType === 'ut') && level !== 'mixed') {
+      toast.error(`Selected indicator expects ${level || 'unknown'} geography; the API mapping is ${officialForm.geographyType}.`);
+      return;
+    }
+    setOfficialLoading(true);
+    try {
+      const result = await previewOfficialPublicDataImport(provider === 'world-bank'
+        ? { provider, indicatorCode: officialForm.indicatorCode, year: officialForm.year }
+        : {
+          provider,
+          resourceId: officialForm.resourceId,
+          geographyType: officialForm.geographyType,
+          mapping: { codeField: officialForm.codeField, nameField: officialForm.nameField, valueField: officialForm.valueField, unitField: officialForm.unitField, rankField: officialForm.rankField },
+        });
+      setImportRows(result.rows);
+      setFileName(`${result.provider} · ${result.count} rows`);
+      setOfficialSource(result.sourceUrl);
+      toast.success(`${result.count} rows fetched for review. Nothing has been saved yet.`);
+    } catch (fetchError) { toast.error(fetchError.message || 'Official API preview failed.'); }
+    finally { setOfficialLoading(false); }
+  }
+
   async function setState(item, updates, message) {
     try { await updateAdminPublicDataEdition(item.id, updates); toast.success(message); await load(); }
     catch (stateError) { toast.error(stateError.message || 'Dataset status update failed.'); }
@@ -188,8 +228,31 @@ export default function PublicDataManager() {
       </div>
 
       <section className="mt-8 border-t border-gray-200 pt-6">
+        <h2 className="text-xl font-extrabold">Fetch from official data APIs</h2>
+        <p className="mt-1 max-w-4xl text-sm text-gray-600">Fetch a source dataset into the preview below. Imported rows remain unverified drafts; source review and explicit verification/publication are still required. API requests are made server-side and restricted to official provider hosts.</p>
+        <form className="mt-4 grid gap-4 rounded-md border border-gray-200 bg-white p-4 md:grid-cols-2" onSubmit={fetchOfficialPreview}>
+          <label className="public-report-field"><span>Official provider</span><select className="input" value={provider} onChange={(event) => { setProvider(event.target.value); setImportRows([]); setOfficialSource(''); }}><option value="world-bank">World Bank Indicators API (no API key)</option><option value="data-gov-in">Open Government Data India (data.gov.in)</option></select></label>
+          <label className="public-report-field"><span>Target draft edition *</span><select className="input" required value={selectedEdition} onChange={(event) => setSelectedEdition(event.target.value)}><option value="">Select dataset edition</option>{editions.filter((item) => item.status === 'draft' && item.verification_status !== 'verified').map((item) => <option key={item.id} value={item.id}>{item.indicator?.name} · {item.edition_label} (draft)</option>)}</select></label>
+          {provider === 'world-bank' ? <>
+            <label className="public-report-field"><span>World Bank indicator code *</span><input className="input" required maxLength={80} value={officialForm.indicatorCode} onChange={(event) => setOfficialForm((old) => ({ ...old, indicatorCode: event.target.value.trim() }))} placeholder="e.g. NY.GDP.PCAP.CD" /></label>
+            <label className="public-report-field"><span>Reference year *</span><input className="input" type="number" min="1960" max={new Date().getFullYear() + 1} required value={officialForm.year} onChange={(event) => setOfficialForm((old) => ({ ...old, year: event.target.value }))} /></label>
+          </> : <>
+            <label className="public-report-field"><span>data.gov.in resource ID *</span><input className="input" required maxLength={128} value={officialForm.resourceId} onChange={(event) => setOfficialForm((old) => ({ ...old, resourceId: event.target.value.trim() }))} placeholder="Copy from the official dataset resource page" /></label>
+            <label className="public-report-field"><span>Geography type *</span><select className="input" value={officialForm.geographyType} onChange={(event) => setOfficialForm((old) => ({ ...old, geographyType: event.target.value }))}><option value="country">Country</option><option value="state">State</option><option value="ut">Union Territory</option><option value="district">District</option></select></label>
+            <label className="public-report-field"><span>Record code field *</span><input className="input" required value={officialForm.codeField} onChange={(event) => setOfficialForm((old) => ({ ...old, codeField: event.target.value }))} placeholder="Exact JSON field name" /></label>
+            <label className="public-report-field"><span>Geography name field *</span><input className="input" required value={officialForm.nameField} onChange={(event) => setOfficialForm((old) => ({ ...old, nameField: event.target.value }))} placeholder="Exact JSON field name" /></label>
+            <label className="public-report-field"><span>Numeric value field *</span><input className="input" required value={officialForm.valueField} onChange={(event) => setOfficialForm((old) => ({ ...old, valueField: event.target.value }))} placeholder="Exact JSON field name" /></label>
+            <label className="public-report-field"><span>Unit field (optional)</span><input className="input" value={officialForm.unitField} onChange={(event) => setOfficialForm((old) => ({ ...old, unitField: event.target.value }))} /></label>
+            <label className="public-report-field"><span>Published rank field (optional)</span><input className="input" value={officialForm.rankField} onChange={(event) => setOfficialForm((old) => ({ ...old, rankField: event.target.value }))} /></label>
+          </>}
+          <div className="flex flex-wrap items-end gap-3"><button className="btn-secondary" type="submit" disabled={officialLoading || !selectedEdition}><CloudDownload size={16} /> {officialLoading ? 'Fetching…' : 'Fetch & preview'}</button>{officialSource && <span className="max-w-xl break-all text-xs text-gray-500">API source: {officialSource}</span>}</div>
+          {provider === 'data-gov-in' && <p className="md:col-span-2 text-xs text-gray-500">Requires server-only Netlify variable <code>DATA_GOV_IN_API_KEY</code>. Never add the key to a VITE variable or browser code. Use only a resource page provided by data.gov.in.</p>}
+        </form>
+      </section>
+
+      <section className="mt-8 border-t border-gray-200 pt-6">
         <h2 className="text-xl font-extrabold">Import observations from CSV</h2>
-        <p className="mt-1 text-sm text-gray-600">Required columns: <code>geography_code, geography_name, geography_type</code>. Optional columns: value, value_text, unit, published_rank, rank_scope, is_missing, notes, source_page. Imports upsert matching geography codes; rows omitted from a later CSV are not deleted. Any import returns the edition to an unverified draft.</p>
+        <p className="mt-1 text-sm text-gray-600">Required columns: <code>geography_code, geography_name, geography_type</code>. Optional columns: value, value_text, unit, published_rank, rank_scope, is_missing, notes, source_page. Imports from this section or the official APIs upsert matching geography codes; rows omitted from a later import are not deleted. Any import returns the edition to an unverified draft.</p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="public-report-field min-w-64"><span>Dataset edition</span><select className="input" value={selectedEdition} onChange={(event) => setSelectedEdition(event.target.value)}><option value="">Select draft or published edition</option>{editions.map((item) => <option key={item.id} value={item.id}>{item.indicator?.name} · {item.edition_label} ({item.status})</option>)}</select></label>
           <label className="btn-secondary cursor-pointer"><Upload size={16} /> Choose CSV<input className="sr-only" type="file" accept=".csv,text/csv" onChange={(event) => event.target.files?.[0] && readCsv(event.target.files[0])} /></label>
