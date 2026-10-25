@@ -193,11 +193,11 @@ begin
 
   content_changed := row(
     new.title, new.slug, new.summary, new.body, new.category_id, new.source_id,
-    new.source_url, new.document_url, new.publication_date, new.reference_year,
+    new.source_url, new.document_url, new.publication_date, new.reference_year, new.reference_period,
     new.methodology, new.scope_notes, new.limitations
   ) is distinct from row(
     old.title, old.slug, old.summary, old.body, old.category_id, old.source_id,
-    old.source_url, old.document_url, old.publication_date, old.reference_year,
+    old.source_url, old.document_url, old.publication_date, old.reference_year, old.reference_period,
     old.methodology, old.scope_notes, old.limitations
   );
 

@@ -109,6 +109,7 @@ export function mapPublicReport(row = {}) {
     publicationDate: row.publication_date || '',
     publicationYear: row.publication_year || null,
     referenceYear: row.reference_year || null,
+    referencePeriod: row.reference_period || '',
     methodology: row.methodology || '',
     scopeNotes: row.scope_notes || '',
     limitations: row.limitations || '',

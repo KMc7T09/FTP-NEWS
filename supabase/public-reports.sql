@@ -89,6 +89,10 @@ create table if not exists public.public_reports (
   )
 );
 
+-- Additive upgrade for installations that created the original report table earlier.
+alter table public.public_reports
+  add column if not exists reference_period text not null default '';
+
 create index if not exists public_reports_published_date_idx
   on public.public_reports (published_at desc) where status = 'published';
 create index if not exists public_reports_category_status_idx

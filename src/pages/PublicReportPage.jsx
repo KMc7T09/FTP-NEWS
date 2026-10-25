@@ -43,15 +43,15 @@ export default function PublicReportPage() {
       />
       <Link className="public-report-back" to="/reports"><ArrowLeft size={16} /> All public reports</Link>
       <header className="public-report-header">
-        <div className="public-report-eyebrow"><span>{report.category?.name || 'Public report'}</span><span className="public-data-status is-verified"><ShieldCheck size={13} /> Verified by FTP News</span></div>
+        <div className="public-report-eyebrow"><span>{report.category?.name || 'Public report'}</span><span className={`public-data-status ${report.verificationStatus === 'verified' ? 'is-verified' : ''}`}><ShieldCheck size={13} /> {report.verificationStatus === 'verified' ? 'Verified by FTP News' : 'Verification pending'}</span></div>
         <h1>{report.title}</h1>
         {report.summary && <p className="public-report-summary">{report.summary}</p>}
         <div className="public-report-metadata">
           <span><strong>Publisher</strong>{report.source?.name || 'Not listed'}</span>
           <span><strong>Publication date</strong><span className="inline-flex items-center gap-1"><CalendarDays size={14} />{formatDate(report.publicationDate)}</span></span>
           <span><strong>Publication year</strong>{report.publicationYear || 'Not provided'}</span>
-          <span><strong>Data reference year</strong>{report.referenceYear || 'Not specified by source'}</span>
-          <span><strong>FTP verification</strong>{formatDate(report.verifiedAt?.slice(0, 10))}</span>
+          <span><strong>Reporting period</strong>{report.referencePeriod || report.referenceYear || 'Not specified by source'}</span>
+          {report.verificationStatus === 'verified' && <span><strong>FTP verification</strong>{formatDate(report.verifiedAt?.slice(0, 10))}</span>}
         </div>
       </header>
 

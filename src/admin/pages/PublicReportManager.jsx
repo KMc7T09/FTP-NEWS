@@ -13,7 +13,7 @@ import {
 
 const blankReport = {
   title: '', slug: '', summary: '', body: '', categoryId: '', sourceId: '', sourceURL: '', documentURL: '',
-  publicationDate: '', referenceYear: '', methodology: '', scopeNotes: '', limitations: '',
+  publicationDate: '', referenceYear: '', referencePeriod: '', methodology: '', scopeNotes: '', limitations: '',
 };
 const blankCategory = { name: '', slug: '', description: '', isActive: true };
 const blankSource = { name: '', websiteURL: '', organizationType: '', jurisdiction: '', notes: '', isActive: true };
@@ -42,10 +42,12 @@ function ReportPreview({ report, categories, sources, onClose }) {
         <div className="mt-5 grid gap-3 border-y border-gray-200 py-4 text-sm sm:grid-cols-3">
           <p><strong className="block text-xs uppercase text-gray-500">Publisher</strong>{source?.name || 'Not selected'}</p>
           <p><strong className="block text-xs uppercase text-gray-500">Publication date</strong>{report.publicationDate || 'Not provided'}</p>
-          <p><strong className="block text-xs uppercase text-gray-500">Data reference year</strong>{report.referenceYear || 'Not specified'}</p>
+          <p><strong className="block text-xs uppercase text-gray-500">Reporting period</strong>{report.referencePeriod || report.referenceYear || 'Not specified'}</p>
         </div>
         <div className="prose-news mt-5 whitespace-pre-wrap">{report.body || 'Report overview will appear here.'}</div>
         {report.methodology && <section className="mt-8"><h3 className="text-xl font-extrabold">Methodology</h3><p className="mt-2 whitespace-pre-wrap text-gray-700">{report.methodology}</p></section>}
+        {report.scopeNotes && <section className="mt-6"><h3 className="text-xl font-extrabold">Scope and coverage</h3><p className="mt-2 whitespace-pre-wrap text-gray-700">{report.scopeNotes}</p></section>}
+        {report.limitations && <section className="mt-6"><h3 className="text-xl font-extrabold">Limitations</h3><p className="mt-2 whitespace-pre-wrap text-gray-700">{report.limitations}</p></section>}
         <div className="mt-8 flex flex-wrap gap-3 text-sm">
           {report.sourceURL && <a className="btn-secondary" href={report.sourceURL} target="_blank" rel="noreferrer">Original source</a>}
           {report.documentURL && <a className="btn-secondary" href={report.documentURL} target="_blank" rel="noreferrer">Source document</a>}
@@ -171,6 +173,7 @@ export default function PublicReportManager() {
             <Field label="Publisher / source"><select className="input" value={report.sourceId} onChange={(event) => setReport((old) => ({ ...old, sourceId: event.target.value }))}><option value="">Select publisher</option>{sources.filter((item) => item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>
             <Field label="Publication date"><input className="input" type="date" value={report.publicationDate || ''} onChange={(event) => setReport((old) => ({ ...old, publicationDate: event.target.value }))} /></Field>
             <Field label="Data reference year"><input className="input" type="number" min="1000" max="9999" placeholder="Only when stated by source" value={report.referenceYear || ''} onChange={(event) => setReport((old) => ({ ...old, referenceYear: event.target.value }))} /></Field>
+            <Field label="Reporting period"><input className="input" maxLength={160} placeholder="e.g. January–December 2025" value={report.referencePeriod || ''} onChange={(event) => setReport((old) => ({ ...old, referencePeriod: event.target.value }))} /></Field>
             <Field label="Original source URL" className="span-two"><input className="input" type="url" placeholder="https://..." value={report.sourceURL} onChange={(event) => setReport((old) => ({ ...old, sourceURL: event.target.value }))} /></Field>
             <Field label="Original document URL" className="span-two"><input className="input" type="url" placeholder="https://... (optional PDF/document link)" value={report.documentURL} onChange={(event) => setReport((old) => ({ ...old, documentURL: event.target.value }))} /></Field>
             <Field label="Summary" className="span-two"><textarea className="input min-h-24" value={report.summary} onChange={(event) => setReport((old) => ({ ...old, summary: event.target.value }))} maxLength={2000} /></Field>
@@ -195,6 +198,7 @@ export default function PublicReportManager() {
                   <div className="flex flex-wrap gap-2">
                     <button className="btn-secondary" type="button" onClick={() => { setReport({ ...blankReport, ...item, referenceYear: item.referenceYear || '' }); setPreview(false); }}><Edit3 size={15} /> Edit</button>
                     {item.status === 'published' && <a className="btn-secondary" href={`/reports/${item.slug}`} target="_blank" rel="noreferrer"><Eye size={15} /> View</a>}
+                    {item.status === 'archived' && <button className="btn-secondary" type="button" onClick={() => changeReportState(item, { status: 'draft' }, 'Report restored to drafts. Existing verification is preserved unless its content changes.')}>Restore to draft</button>}
                     {item.verificationStatus !== 'verified' && <button className="btn-secondary" type="button" onClick={() => {
                       const confirmed = window.confirm('Confirm you checked the original source, publication date, methodology, scope and limitations. This marks the report as verified by FTP News.');
                       if (confirmed) changeReportState(item, { verificationStatus: 'verified' }, 'Report verified. It is still unpublished.');

@@ -59,11 +59,12 @@ export default function PublicReportsPage() {
     const normalized = query.trim().toLocaleLowerCase();
     return reports.filter((report) => {
       const matchesCategory = category === 'all' || report.categoryId === category;
-      const matchesQuery = !normalized || [report.title, report.summary, report.category?.name, report.source?.name, report.referenceYear]
+      const matchesTopic = !selectedTopic || report.category?.name?.toLocaleLowerCase() === selectedTopic.toLocaleLowerCase();
+      const matchesQuery = !normalized || [report.title, report.summary, report.body, report.category?.name, report.source?.name, report.referenceYear, report.referencePeriod]
         .join(' ').toLocaleLowerCase().includes(normalized);
-      return matchesCategory && matchesQuery;
+      return matchesCategory && matchesTopic && matchesQuery;
     });
-  }, [reports, category, query]);
+  }, [reports, category, query, selectedTopic]);
 
   const filteredTopics = useMemo(() => {
     const normalized = topicQuery.trim().toLocaleLowerCase();
@@ -114,12 +115,12 @@ export default function PublicReportsPage() {
         </div>
         <div className="public-data-directory-layout">
           <div className="public-data-topic-grid" aria-label="Public data topics">
-            {filteredTopics.map(({ name, description, icon: Icon }, index) => <button className={`public-data-topic${selectedTopic === name ? ' is-selected' : ''}`} key={name} type="button" aria-pressed={selectedTopic === name} onClick={() => setSelectedTopic((current) => current === name ? '' : name)}>
+            {filteredTopics.map(({ name, description, icon: Icon }, index) => <button className={`public-data-topic${selectedTopic === name ? ' is-selected' : ''}`} key={name} type="button" aria-pressed={selectedTopic === name} onClick={() => { setSelectedTopic((current) => current === name ? '' : name); setCategory('all'); document.getElementById('archive')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
               <span className="public-data-topic-index">{String(index + 1).padStart(2, '0')}</span><span className="public-data-topic-icon"><Icon size={19} strokeWidth={1.8} /></span><span className="public-data-topic-copy"><strong>{name}</strong><span>{description}</span></span><ArrowRight className="public-data-topic-arrow" size={17} aria-hidden="true" />
             </button>)}
             {!filteredTopics.length && <div className="public-data-no-topics" role="status">No topics match “{topicQuery}”. Try a broader search.</div>}
           </div>
-          <aside className="public-data-results" aria-live="polite"><div className="public-data-results-topline"><BookOpenCheck size={17} /> REPORT INDEX</div><p className="public-data-results-kicker">{selectedTopicDetails ? 'SELECTED TOPIC' : 'CURRENT CATALOGUE'}</p><h3>{selectedTopicDetails?.name || 'Source-verified records'}</h3><p className="public-data-results-copy">{selectedTopicDetails?.description || 'Reports are listed below after their source, edition, scope and methodology have been reviewed.'}</p><div className="public-data-empty-state"><span className="public-data-empty-mark"><Search size={19} /></span><strong>Topics are ready to browse</strong><span>Open the report archive below to see source-reviewed publications. Topic labels do not stand in for missing data.</span></div><Link to="/rankings" className="public-data-source-link">Explore published rankings <ArrowRight size={14} /></Link></aside>
+          <aside className="public-data-results" aria-live="polite"><div className="public-data-results-topline"><BookOpenCheck size={17} /> REPORT INDEX</div><p className="public-data-results-kicker">{selectedTopicDetails ? 'SELECTED TOPIC' : 'CURRENT CATALOGUE'}</p><h3>{selectedTopicDetails?.name || 'Source-verified records'}</h3><p className="public-data-results-copy">{selectedTopicDetails?.description || 'Reports are listed below after their source, edition, scope and methodology have been reviewed.'}</p><div className="public-data-empty-state"><span className="public-data-empty-mark"><Search size={19} /></span><strong>{loading ? 'Loading reports' : `${filteredReports.length} matching report${filteredReports.length === 1 ? '' : 's'}`}</strong><span>{selectedTopicDetails ? 'Topic selection filters the archive by its matching report category.' : 'Browse the archive below for source-reviewed publications.'}</span></div><Link to="/rankings" className="public-data-source-link">Explore published rankings <ArrowRight size={14} /></Link></aside>
         </div>
       </section>
 
@@ -140,7 +141,7 @@ export default function PublicReportsPage() {
 
         <div className="public-data-filters">
           <label htmlFor="report-category-filter">Category</label>
-          <select id="report-category-filter" value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select id="report-category-filter" value={category} onChange={(event) => { setCategory(event.target.value); setSelectedTopic(''); }}>
             <option value="all">All categories</option>
             {categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
@@ -165,7 +166,7 @@ export default function PublicReportsPage() {
                 <div className="public-data-report-facts">
                   <span><strong>Publisher</strong>{report.source?.name || 'Not listed'}</span>
                   <span><strong>Published</strong>{report.publicationYear || displayDate(report.publicationDate)}</span>
-                  <span><strong>Data period</strong>{report.referenceYear || 'Not specified'}</span>
+                  <span><strong>Reporting period</strong>{report.referencePeriod || report.referenceYear || 'Not specified'}</span>
                 </div>
                 <div className="public-data-report-links">
                   <Link to={`/reports/${report.slug}`}>Report details <ArrowRight size={15} /></Link>

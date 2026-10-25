@@ -220,7 +220,7 @@ export async function deleteCategory(id) {
   if (error) throw error;
 }
 
-const publicReportJoin = 'id,title,slug,summary,body,category_id,source_id,source_url,document_url,publication_date,publication_year,reference_year,methodology,scope_notes,limitations,verification_status,verified_at,published_at,updated_at,category:public_report_categories(id,name,slug,description,is_active),source:public_report_sources(id,name,website_url,organization_type,jurisdiction,notes,is_active)';
+const publicReportJoin = 'id,title,slug,summary,body,category_id,source_id,source_url,document_url,publication_date,publication_year,reference_year,reference_period,methodology,scope_notes,limitations,verification_status,verified_at,published_at,updated_at,category:public_report_categories(id,name,slug,description,is_active),source:public_report_sources(id,name,website_url,organization_type,jurisdiction,notes,is_active)';
 
 export async function listPublishedReports({ limit = 300 } = {}) {
   const client = requireSupabase();

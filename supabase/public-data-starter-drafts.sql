@@ -45,9 +45,9 @@ insert into public.public_data_observations (
   unit, published_rank, rank_scope, notes, source_page
 )
 select e.id, 'IND', 'India', 'country', 0.685, 'index points', 130,
-  'UNDP published rank; 193 countries and territories',
-  'UNDP Human Development Report 2025 statistical annex reports the India HDI value and rank for 2023. Rank ties and exact table wording require editor review.',
-  'Statistical annex, Table 1'
+  'UNDP published rank 130, shared with Bangladesh; rank scope and total coverage require final table-level editorial confirmation',
+  'UNDP Human Development Report 2025 Statistical Table 2 reports the India HDI value and rank for 2023. India shares rank 130 with Bangladesh; editor should confirm table wording and ranking method.',
+  'Statistical Table 2, printed p.280 (PDF p.294)'
 from public.public_data_editions e
 join public.public_data_indicators i on i.id = e.indicator_id
 where i.slug = 'human-development-index'

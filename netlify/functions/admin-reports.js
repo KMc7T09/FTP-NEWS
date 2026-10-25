@@ -135,11 +135,6 @@ function validateUrl(value, label, required = false) {
 }
 
 function reportRow(data, userId, current = {}) {
-  const contentFields = new Set([
-    'title', 'slug', 'summary', 'body', 'categoryId', 'sourceId', 'sourceURL',
-    'documentURL', 'publicationDate', 'referenceYear', 'methodology', 'scopeNotes', 'limitations',
-  ]);
-  const contentChanged = Boolean(current.id) && Object.keys(data).some((key) => contentFields.has(key));
   const title = text(data.title ?? current.title, 240);
   if (!title) throw new HttpError(400, 'Report title is required.');
   const slug = slugify(data.slug ?? current.slug ?? title);
@@ -157,13 +152,32 @@ function reportRow(data, userId, current = {}) {
     reference_year: data.referenceYear === undefined
       ? (current.reference_year ?? null)
       : (data.referenceYear === '' || data.referenceYear === null ? null : Number(data.referenceYear)),
+    reference_period: text(data.referencePeriod ?? current.reference_period, 160),
     methodology: text(data.methodology ?? current.methodology, 12000),
     scope_notes: text(data.scopeNotes ?? current.scope_notes, 12000),
     limitations: text(data.limitations ?? current.limitations, 12000),
-    verification_status: contentChanged ? 'unverified' : (data.verificationStatus ?? current.verification_status ?? 'unverified'),
-    status: contentChanged ? 'draft' : (data.status ?? current.status ?? 'draft'),
     updated_by: userId,
   };
+  const substantiveFields = {
+    title: row.title,
+    slug: row.slug,
+    summary: row.summary,
+    body: row.body,
+    category_id: row.category_id,
+    source_id: row.source_id,
+    source_url: row.source_url,
+    document_url: row.document_url,
+    publication_date: row.publication_date,
+    reference_year: row.reference_year,
+    reference_period: row.reference_period,
+    methodology: row.methodology,
+    scope_notes: row.scope_notes,
+    limitations: row.limitations,
+  };
+  const contentChanged = Boolean(current.id) && Object.entries(substantiveFields)
+    .some(([field, value]) => !Object.is(value, current[field] ?? (value === null ? null : undefined)));
+  row.verification_status = contentChanged ? 'unverified' : (data.verificationStatus ?? current.verification_status ?? 'unverified');
+  row.status = contentChanged ? 'draft' : (data.status ?? current.status ?? 'draft');
   if (row.publication_date && !/^\d{4}-\d{2}-\d{2}$/.test(row.publication_date)) throw new HttpError(400, 'Publication date must use YYYY-MM-DD.');
   if (row.reference_year !== null && (!Number.isInteger(row.reference_year) || row.reference_year < 1000 || row.reference_year > 9999)) {
     throw new HttpError(400, 'Reference year must be a four-digit year.');

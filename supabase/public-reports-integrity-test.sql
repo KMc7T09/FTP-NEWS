@@ -171,6 +171,18 @@ begin
     raise exception 'Substantive content edit did not invalidate and unpublish the report.';
   end if;
 
+  update public.public_reports
+  set reference_period = 'January–December 2025', verification_status = 'verified',
+      status = 'published', verified_by = verifier_id, verified_at = now()
+  where id = report_id;
+  select * into report_row from public.public_reports where id = report_id;
+  if report_row.status <> 'draft' or report_row.verification_status <> 'unverified'
+     or report_row.reference_period <> 'January–December 2025'
+     or report_row.verified_by is not null or report_row.verified_at is not null
+     or report_row.published_at is not null then
+    raise exception 'Reporting-period edit did not invalidate and unpublish the report.';
+  end if;
+
   perform set_config('request.jwt.claim.role', 'service_role', true);
   update public.public_reports
   set verification_status = 'verified', verified_by = verifier_id, verified_at = now(),
