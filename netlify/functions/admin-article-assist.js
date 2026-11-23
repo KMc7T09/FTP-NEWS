@@ -1,4 +1,6 @@
 const MODEL = process.env.ARTICLE_WRITER_MODEL || 'gemini-3.5-flash-lite';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || process.env.OPENROUTER_MODEL || 'tencent/hy3:free';
 
 function json(statusCode, body) {
   return {
@@ -61,6 +63,29 @@ async function fetchGeminiWithRetry(url, options) {
     await new Promise((resolve) => setTimeout(resolve, 1200));
   }
   return response;
+}
+
+async function generateWithOpenRouter(prompt, categories) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://the-ftp-news.netlify.app',
+      'X-OpenRouter-Title': 'FTP News Article Writing Assistant',
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.35,
+      max_tokens: 6500,
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error('Alternate AI provider could not complete the draft.');
+  const text = payload?.choices?.[0]?.message?.content || '';
+  return { ...parseDraft(text, categories), model: OPENROUTER_MODEL, provider: 'openrouter-fallback' };
 }
 
 function parseDraft(text, categories) {
@@ -141,6 +166,13 @@ exports.handler = async (event) => {
     if (!response.ok) {
       const message = String(payload?.error?.message || payload?.message || 'Gemini request failed.');
       if (response.status === 503) {
+        if (OPENROUTER_API_KEY) {
+          try {
+            return json(200, await generateWithOpenRouter(prompt, categories));
+          } catch {
+            return json(503, { error: 'Gemini is overloaded and the alternate AI provider could not complete the draft. Please retry later.' });
+          }
+        }
         return json(503, { error: 'Gemini is temporarily overloaded. I retried once; please try again in a few minutes.' });
       }
       return json(response.status === 429 ? 429 : 502, {
