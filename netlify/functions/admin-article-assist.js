@@ -63,14 +63,27 @@ async function fetchGeminiWithRetry(url, options) {
   return response;
 }
 
-function parseDraft(text) {
+function parseDraft(text, categories) {
   const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const result = JSON.parse(cleaned);
   const title = compact(result.title, 240);
   const excerpt = compact(result.excerpt, 1200);
   const body = compact(result.body, 18000);
-  if (!title || !excerpt || !body) throw new Error('Gemini returned an incomplete draft. Please try again.');
-  return { title, excerpt, body };
+  const odiaTitle = compact(result.odiaTitle, 300);
+  const odiaExcerpt = compact(result.odiaExcerpt, 1200);
+  const odiaBody = compact(result.odiaBody, 18000);
+  const tags = Array.isArray(result.tags) ? [...new Set(result.tags.map((tag) => compact(tag, 40)).filter(Boolean))].slice(0, 12) : [];
+  const category = categories.find((item) => String(item.name).toLowerCase() === compact(result.category, 120).toLowerCase());
+  if (!title || !excerpt || !body || !odiaTitle || !odiaExcerpt || !odiaBody) {
+    throw new Error('Gemini returned an incomplete draft. Please try again.');
+  }
+  return {
+    title, excerpt, body, odiaTitle, odiaExcerpt, odiaBody, tags,
+    categoryName: category?.name || '',
+    categorySlug: category?.slug || '',
+    metaTitle: compact(result.metaTitle, 240) || title,
+    metaDescription: compact(result.metaDescription, 320) || excerpt,
+  };
 }
 
 exports.handler = async (event) => {
@@ -86,9 +99,12 @@ exports.handler = async (event) => {
     const input = JSON.parse(event.body || '{}');
     const brief = compact(input.brief, 3500);
     const language = ['English', 'Hindi', 'Odia', 'Bengali', 'Telugu', 'Tamil'].includes(input.language) ? input.language : 'English';
+    const categories = Array.isArray(input.categories)
+      ? input.categories.slice(0, 60).map((item) => ({ name: compact(item?.name, 120), slug: compact(item?.slug, 140) })).filter((item) => item.name && item.slug)
+      : [];
     if (brief.length < 20) return json(400, { error: 'Add at least a few sentences of topic and reporting notes.' });
 
-    const prompt = `Create an editable news article draft in ${language} for THE FTP NEWS. Return only valid JSON with string keys title, excerpt, body.\n\nEditorial rules:\n- Use only facts explicitly present in the supplied reporting notes. Never invent names, dates, quotes, numbers, events, sources, or claims.\n- If a key fact is missing, insert a clear [VERIFY: what is missing] note in the body instead of guessing.\n- Keep the writing neutral, attributed, readable, and original. Do not copy source wording.\n- The excerpt should be concise. The body should use plain text paragraphs separated by blank lines, with no HTML or markdown.\n- A source name or URL is a research lead, not proof; do not claim you independently verified it.\n\nCurrent title suggestion: ${compact(input.title, 240) || 'Create a suitable headline'}\nProvided source name: ${compact(input.sourceName, 200) || 'Not supplied'}\nProvided source URL: ${compact(input.sourceURL, 500) || 'Not supplied'}\nReporting notes (the only factual basis):\n${brief}`;
+    const prompt = `Create a complete editable news article draft for THE FTP NEWS. Write title, excerpt and body in ${language}; also provide a faithful Odia version in odiaTitle, odiaExcerpt and odiaBody. Return only valid JSON with string keys title, excerpt, body, odiaTitle, odiaExcerpt, odiaBody, category, metaTitle, metaDescription, and a string-array tags.\n\nEditorial rules:\n- Use only facts explicitly present in the supplied reporting notes. Never invent names, dates, quotes, numbers, events, sources, URLs, author names, or claims.\n- If a key fact is missing, insert a clear [VERIFY: what is missing] note in the body and Odia body instead of guessing.\n- Keep the writing neutral, attributed, readable, and original. Do not copy source wording.\n- The excerpt and SEO description should be concise. Body fields must be plain text paragraphs separated by blank lines, with no HTML or markdown.\n- Choose category exactly from this available list, or return an empty string if none fits: ${JSON.stringify(categories.map((item) => item.name))}\n- Generate up to 8 concise relevant tags from the supplied facts.\n- A source name or URL is a research lead, not proof; do not claim you independently verified it.\n- Return only valid JSON matching the requested fields.\n\nCurrent title suggestion: ${compact(input.title, 240) || 'Create a suitable headline'}\nProvided source name: ${compact(input.sourceName, 200) || 'Not supplied'}\nProvided source URL: ${compact(input.sourceURL, 500) || 'Not supplied'}\nReporting notes (the only factual basis):\n${brief}`;
 
     const response = await fetchGeminiWithRetry('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
@@ -97,6 +113,7 @@ exports.handler = async (event) => {
         model: MODEL,
         input: prompt,
         store: false,
+        generation_config: { temperature: 0.35, max_output_tokens: 6500 },
         response_format: {
           type: 'text',
           mime_type: 'application/json',
@@ -106,8 +123,15 @@ exports.handler = async (event) => {
               title: { type: 'string' },
               excerpt: { type: 'string' },
               body: { type: 'string' },
+              odiaTitle: { type: 'string' },
+              odiaExcerpt: { type: 'string' },
+              odiaBody: { type: 'string' },
+              category: { type: 'string' },
+              tags: { type: 'array', items: { type: 'string' } },
+              metaTitle: { type: 'string' },
+              metaDescription: { type: 'string' },
             },
-            required: ['title', 'excerpt', 'body'],
+            required: ['title', 'excerpt', 'body', 'odiaTitle', 'odiaExcerpt', 'odiaBody', 'category', 'tags', 'metaTitle', 'metaDescription'],
           },
         },
       }),
@@ -131,7 +155,7 @@ exports.handler = async (event) => {
         .flatMap((step) => step.content || [])
         .map((part) => part.text || '')
         .join('\n');
-    return json(200, { ...parseDraft(text), model: MODEL });
+    return json(200, { ...parseDraft(text, categories), model: MODEL });
   } catch (error) {
     const status = /session|login/i.test(error.message) ? 401 : 500;
     return json(status, { error: error.message || 'Article draft generation failed.' });

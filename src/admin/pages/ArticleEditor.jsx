@@ -70,7 +70,8 @@ export default function ArticleEditor() {
       toast.error('Pehle topic, notes ya key points likho.');
       return;
     }
-    if ((form.title || form.excerpt || form.content) && !window.confirm('Gemini generated draft existing title, excerpt aur article body ko replace karega. Continue?')) return;
+    const hasExistingDraftFields = [form.title, form.excerpt, form.content, form.odiaTitle, form.odiaExcerpt, form.odiaContent, form.tags, form.metaTitle, form.metaDescription].some(Boolean);
+    if (hasExistingDraftFields && !window.confirm('Gemini generated title, excerpt, body, Odia version, tags aur SEO fields ko replace karega. Author, source aur image fields nahi badlenge. Continue?')) return;
     setAiBusy(true);
     try {
       const { data: { session } = {} } = await supabase.auth.getSession();
@@ -87,22 +88,33 @@ export default function ArticleEditor() {
           title: form.title,
           sourceName: form.sourceName,
           sourceURL: form.sourceURL,
+          categories: categories.map((category) => ({ name: category.name, slug: category.slug })),
         }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || `Gemini request failed (${response.status}).`);
-      const safeParagraphs = String(result.body || '').trim().split(/\n\s*\n/)
+      const safeRichText = (value) => String(value || '').trim().split(/\n\s*\n/)
         .filter(Boolean)
         .map((paragraph) => `<p>${paragraph.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`)
         .join('');
+      const suggestedCategory = categories.find((category) => category.slug === result.categorySlug);
       setForm((current) => ({
         ...current,
         title: result.title || current.title,
         excerpt: result.excerpt || current.excerpt,
-        content: safeParagraphs || current.content,
+        content: safeRichText(result.body) || current.content,
+        odiaTitle: result.odiaTitle || current.odiaTitle,
+        odiaExcerpt: result.odiaExcerpt || current.odiaExcerpt,
+        odiaContent: safeRichText(result.odiaBody) || current.odiaContent,
+        categoryId: suggestedCategory?.id || current.categoryId,
+        categoryName: suggestedCategory?.name || current.categoryName,
+        categorySlug: suggestedCategory?.slug || current.categorySlug,
+        tags: Array.isArray(result.tags) ? result.tags.join(', ') : current.tags,
+        metaTitle: result.metaTitle || current.metaTitle,
+        metaDescription: result.metaDescription || current.metaDescription,
         status: 'draft',
       }));
-      toast.success('AI draft fields me aa gaya. Facts aur sources check karke hi publish karein.');
+      toast.success('Article, Odia, category, tags aur SEO fields fill ho gaye. Source/image check karke hi publish karein.');
     } catch (error) {
       toast.error(error.message || 'Gemini draft generate nahi ho saka.');
     } finally {
@@ -150,12 +162,12 @@ export default function ArticleEditor() {
         <div className="news-card space-y-5 p-5">
           <section className="rounded-md border border-red-200 bg-red-50/60 p-4" aria-labelledby="gemini-writing-title">
             <div className="flex items-center gap-2"><Sparkles size={17} className="text-brand-red" /><h2 id="gemini-writing-title" className="font-bold">Gemini Writing Assistant</h2></div>
-            <p className="mt-1 text-sm text-gray-600">Topic, apne notes aur confirmed facts likho. Gemini editable draft banayega; unsupported facts ko verify karo.</p>
+            <p className="mt-1 text-sm text-gray-600">Topic aur confirmed notes do. Gemini title, excerpt, article body, Odia version, category, tags aur SEO fields fill karega. Author, source URL aur image manually check/add karo.</p>
             <label className="label mt-3 block">Topic / reporting notes</label>
             <textarea className="input mt-2 min-h-24" value={aiBrief} onChange={(event) => setAiBrief(event.target.value)} placeholder="Kya hua, kahan, kab, kis source se confirm hua? Sirf verified notes do." maxLength={3500} />
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <label className="public-report-field min-w-44 flex-1"><span>Draft language</span><select className="input" value={aiLanguage} onChange={(event) => setAiLanguage(event.target.value)}><option>English</option><option>Hindi</option><option>Odia</option><option>Bengali</option><option>Telugu</option><option>Tamil</option></select></label>
-              <button type="button" className="btn-primary" disabled={aiBusy} onClick={generateArticleDraft}>{aiBusy ? <><LoaderCircle size={15} className="animate-spin" /> Generating…</> : <><Sparkles size={15} /> Generate draft</>}</button>
+              <button type="button" className="btn-primary" disabled={aiBusy} onClick={generateArticleDraft}>{aiBusy ? <><LoaderCircle size={15} className="animate-spin" /> Generating…</> : <><Sparkles size={15} /> Fill article with Gemini</>}</button>
             </div>
           </section>
           <div>
