@@ -1,6 +1,13 @@
 const MODEL = process.env.ARTICLE_WRITER_MODEL || 'gemini-3.5-flash-lite';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || 'openrouter/free';
+const REQUEST_BUDGET_MS = 17000;
+
+function requestSignal(deadline, maxMs) {
+  const remaining = deadline - Date.now() - 500;
+  if (remaining <= 0) throw new Error('Article AI timed out before a provider could respond. Please retry.');
+  return AbortSignal.timeout(Math.min(maxMs, remaining));
+}
 
 function json(statusCode, body) {
   return {
@@ -27,10 +34,10 @@ function config() {
   };
 }
 
-async function supabaseGet(path, token, serviceKey, url) {
+async function supabaseGet(path, token, serviceKey, url, deadline) {
   const response = await fetch(`${url}${path}`, {
     headers: { apikey: serviceKey, Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(10000),
+    signal: requestSignal(deadline, 2500),
   });
   const text = await response.text();
   let data;
@@ -39,12 +46,12 @@ async function supabaseGet(path, token, serviceKey, url) {
   return data;
 }
 
-async function authorize(event, settings) {
+async function authorize(event, settings, deadline) {
   const token = String(event.headers?.authorization || event.headers?.Authorization || '').match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return false;
-  const user = await supabaseGet('/auth/v1/user', token, settings.serviceKey, settings.url);
+  const user = await supabaseGet('/auth/v1/user', token, settings.serviceKey, settings.url, deadline);
   if (!user?.id) return false;
-  const rows = await supabaseGet(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=email,role,status`, settings.serviceKey, settings.serviceKey, settings.url);
+  const rows = await supabaseGet(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=email,role,status`, settings.serviceKey, settings.serviceKey, settings.url, deadline);
   const profile = Array.isArray(rows) ? rows[0] : null;
   const email = String(user.email || profile?.email || '').toLowerCase();
   return profile?.status === 'active'
@@ -55,21 +62,17 @@ function compact(value, max) {
   return String(value || '').trim().slice(0, max);
 }
 
-async function fetchGeminiWithRetry(url, options) {
+async function fetchGeminiWithRetry(url, options, deadline) {
   let response;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      response = await fetch(url, options);
-      if (response.status !== 503 || attempt === 1) return response;
-    } catch (error) {
-      if (attempt === 1) throw error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    response = await fetch(url, { ...options, signal: requestSignal(deadline, 9000) });
+    if (response.status !== 503 || attempt === 1 || deadline - Date.now() < 5500) return response;
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
   return response;
 }
 
-async function generateWithOpenRouter(prompt, categories) {
+async function generateWithOpenRouter(prompt, categories, deadline) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -85,7 +88,7 @@ async function generateWithOpenRouter(prompt, categories) {
       temperature: 0.35,
       max_tokens: 6500,
     }),
-    signal: AbortSignal.timeout(45000),
+    signal: requestSignal(deadline, 9000),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -98,10 +101,10 @@ async function generateWithOpenRouter(prompt, categories) {
   return { ...parseDraft(text, categories), model: payload?.model || OPENROUTER_MODEL, provider: 'openrouter-fallback' };
 }
 
-async function fallbackOrFailure(prompt, categories, primaryFailure) {
+async function fallbackOrFailure(prompt, categories, primaryFailure, deadline) {
   if (OPENROUTER_API_KEY) {
     try {
-      return json(200, await generateWithOpenRouter(prompt, categories));
+      return json(200, await generateWithOpenRouter(prompt, categories, deadline));
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
         return json(502, { error: 'Gemini failed, and OpenRouter rejected its key. Check the OPENROUTER_API_KEY secret in Netlify.' });
@@ -148,11 +151,12 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed.' });
 
+  const deadline = Date.now() + REQUEST_BUDGET_MS;
   try {
     const settings = config();
     if (!settings.url || !settings.serviceKey) return json(503, { error: 'Server is missing Supabase function configuration.' });
     if (!settings.geminiKey) return json(503, { error: 'Gemini is not configured. Add GEMINI_API_KEY in Netlify environment variables.' });
-    if (!(await authorize(event, settings))) return json(403, { error: 'Sign in with an active editor or admin account to use article AI.' });
+    if (!(await authorize(event, settings, deadline))) return json(403, { error: 'Sign in with an active editor or admin account to use article AI.' });
 
     const input = JSON.parse(event.body || '{}');
     const brief = compact(input.brief, 3500);
@@ -195,15 +199,14 @@ exports.handler = async (event) => {
             },
           },
         }),
-        signal: AbortSignal.timeout(45000),
-      });
+      }, deadline);
     } catch (error) {
-      return fallbackOrFailure(prompt, categories, { status: 0, message: error.message || 'network connection failed' });
+      return fallbackOrFailure(prompt, categories, { status: 0, message: error.message || 'network connection failed' }, deadline);
     }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = String(payload?.error?.message || payload?.message || 'Gemini request failed.');
-      return fallbackOrFailure(prompt, categories, { status: response.status, message });
+      return fallbackOrFailure(prompt, categories, { status: response.status, message }, deadline);
     }
     const text = payload?.output_text
       || (payload?.steps || [])
