@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { LoaderCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { createSlug } from '../../utils/slug.js';
 import { cleanAuthorName, excerptFrom } from '../../utils/format.js';
 import RichTextEditor from '../../components/common/RichTextEditor.jsx';
+import { supabase } from '../../supabase/config.js';
 import { getArticle, listCategories, saveArticle } from '../../supabase/api.js';
 import { staticCategories } from '../../data/demoContent.js';
 
@@ -37,6 +39,9 @@ export default function ArticleEditor() {
   const [form, setForm] = useState(blank);
   const [categories, setCategories] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [aiBrief, setAiBrief] = useState('');
+  const [aiLanguage, setAiLanguage] = useState('English');
+  const [aiBusy, setAiBusy] = useState(false);
 
   useEffect(() => {
     listCategories()
@@ -58,6 +63,51 @@ export default function ArticleEditor() {
 
   function setField(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function generateArticleDraft() {
+    if (!aiBrief.trim()) {
+      toast.error('Pehle topic, notes ya key points likho.');
+      return;
+    }
+    if ((form.title || form.excerpt || form.content) && !window.confirm('Gemini generated draft existing title, excerpt aur article body ko replace karega. Continue?')) return;
+    setAiBusy(true);
+    try {
+      const { data: { session } = {} } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in again with your editor/admin account.');
+      const response = await fetch('/.netlify/functions/admin-article-assist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          brief: aiBrief,
+          language: aiLanguage,
+          title: form.title,
+          sourceName: form.sourceName,
+          sourceURL: form.sourceURL,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Gemini request failed (${response.status}).`);
+      const safeParagraphs = String(result.body || '').trim().split(/\n\s*\n/)
+        .filter(Boolean)
+        .map((paragraph) => `<p>${paragraph.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`)
+        .join('');
+      setForm((current) => ({
+        ...current,
+        title: result.title || current.title,
+        excerpt: result.excerpt || current.excerpt,
+        content: safeParagraphs || current.content,
+        status: 'draft',
+      }));
+      toast.success('AI draft fields me aa gaya. Facts aur sources check karke hi publish karein.');
+    } catch (error) {
+      toast.error(error.message || 'Gemini draft generate nahi ho saka.');
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function submit(event) {
@@ -98,6 +148,16 @@ export default function ArticleEditor() {
       <h1 className="mb-6 text-2xl font-extrabold">{id ? 'Edit Article' : 'Create Article'}</h1>
       <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <div className="news-card space-y-5 p-5">
+          <section className="rounded-md border border-red-200 bg-red-50/60 p-4" aria-labelledby="gemini-writing-title">
+            <div className="flex items-center gap-2"><Sparkles size={17} className="text-brand-red" /><h2 id="gemini-writing-title" className="font-bold">Gemini Writing Assistant</h2></div>
+            <p className="mt-1 text-sm text-gray-600">Topic, apne notes aur confirmed facts likho. Gemini editable draft banayega; unsupported facts ko verify karo.</p>
+            <label className="label mt-3 block">Topic / reporting notes</label>
+            <textarea className="input mt-2 min-h-24" value={aiBrief} onChange={(event) => setAiBrief(event.target.value)} placeholder="Kya hua, kahan, kab, kis source se confirm hua? Sirf verified notes do." maxLength={3500} />
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <label className="public-report-field min-w-44 flex-1"><span>Draft language</span><select className="input" value={aiLanguage} onChange={(event) => setAiLanguage(event.target.value)}><option>English</option><option>Hindi</option><option>Odia</option><option>Bengali</option><option>Telugu</option><option>Tamil</option></select></label>
+              <button type="button" className="btn-primary" disabled={aiBusy} onClick={generateArticleDraft}>{aiBusy ? <><LoaderCircle size={15} className="animate-spin" /> Generating…</> : <><Sparkles size={15} /> Generate draft</>}</button>
+            </div>
+          </section>
           <div>
             <label className="label">Title</label>
             <input className="input mt-2" value={form.title} onChange={(event) => setField('title', event.target.value)} required />
