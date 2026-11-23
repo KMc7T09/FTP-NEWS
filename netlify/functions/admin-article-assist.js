@@ -1,7 +1,10 @@
 const MODEL = process.env.ARTICLE_WRITER_MODEL || 'gemini-3.5-flash-lite';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const OPENROUTER_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || 'openrouter/free';
-const REQUEST_BUDGET_MS = 17000;
+const CONFIGURED_FALLBACK_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || '';
+const OPENROUTER_MODEL = !CONFIGURED_FALLBACK_MODEL || CONFIGURED_FALLBACK_MODEL === 'openrouter/free'
+  ? 'google/gemma-4-31b-it:free'
+  : CONFIGURED_FALLBACK_MODEL;
+const REQUEST_BUDGET_MS = 18000;
 
 function requestSignal(deadline, maxMs) {
   const remaining = deadline - Date.now() - 500;
@@ -73,7 +76,7 @@ function errorMessage(value, fallback = 'Provider returned an unspecified error.
 async function fetchGeminiWithRetry(url, options, deadline) {
   let response;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    response = await fetch(url, { ...options, signal: requestSignal(deadline, 9000) });
+    response = await fetch(url, { ...options, signal: requestSignal(deadline, 11500) });
     if (response.status !== 503 || attempt === 1 || deadline - Date.now() < 5500) return response;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
