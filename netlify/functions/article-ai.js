@@ -68,8 +68,18 @@ function getText(data) {
   return String(output || '').trim();
 }
 
+async function fetchGeminiWithRetry(url, options) {
+  let response;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    response = await fetch(url, options);
+    if (response.status !== 503 || attempt === 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
+  return response;
+}
+
 async function callGemini(payload) {
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+  const response = await fetchGeminiWithRetry('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
     body: JSON.stringify({
@@ -82,7 +92,9 @@ async function callGemini(payload) {
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(stripError(detail) || `Gemini request failed with ${response.status}`);
+    const error = new Error(stripError(detail) || `Gemini request failed with ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();
@@ -216,6 +228,9 @@ ${question}
       model: MODEL,
     });
   } catch (error) {
+    if (error.status === 503) {
+      return json(503, { error: 'Gemini is temporarily overloaded. I retried once; please try again in a few minutes.' });
+    }
     return json(500, { error: error.message || 'AI verification failed.' });
   }
 };

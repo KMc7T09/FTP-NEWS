@@ -53,6 +53,16 @@ function compact(value, max) {
   return String(value || '').trim().slice(0, max);
 }
 
+async function fetchGeminiWithRetry(url, options) {
+  let response;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    response = await fetch(url, options);
+    if (response.status !== 503 || attempt === 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
+  return response;
+}
+
 function parseDraft(text) {
   const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const result = JSON.parse(cleaned);
@@ -80,7 +90,7 @@ exports.handler = async (event) => {
 
     const prompt = `Create an editable news article draft in ${language} for THE FTP NEWS. Return only valid JSON with string keys title, excerpt, body.\n\nEditorial rules:\n- Use only facts explicitly present in the supplied reporting notes. Never invent names, dates, quotes, numbers, events, sources, or claims.\n- If a key fact is missing, insert a clear [VERIFY: what is missing] note in the body instead of guessing.\n- Keep the writing neutral, attributed, readable, and original. Do not copy source wording.\n- The excerpt should be concise. The body should use plain text paragraphs separated by blank lines, with no HTML or markdown.\n- A source name or URL is a research lead, not proof; do not claim you independently verified it.\n\nCurrent title suggestion: ${compact(input.title, 240) || 'Create a suitable headline'}\nProvided source name: ${compact(input.sourceName, 200) || 'Not supplied'}\nProvided source URL: ${compact(input.sourceURL, 500) || 'Not supplied'}\nReporting notes (the only factual basis):\n${brief}`;
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    const response = await fetchGeminiWithRetry('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiKey },
       body: JSON.stringify({
@@ -106,6 +116,9 @@ exports.handler = async (event) => {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = String(payload?.error?.message || payload?.message || 'Gemini request failed.');
+      if (response.status === 503) {
+        return json(503, { error: 'Gemini is temporarily overloaded. I retried once; please try again in a few minutes.' });
+      }
       return json(response.status === 429 ? 429 : 502, {
         error: response.status === 429
           ? 'Gemini quota is exhausted for this API project. Check AI Studio API quota/billing, then retry.'
