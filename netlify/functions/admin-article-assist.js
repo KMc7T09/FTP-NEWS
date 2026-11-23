@@ -101,62 +101,72 @@ async function fetchGeminiWithRetry(url, options, deadline) {
 
 async function generateWithOpenRouter(prompt, categories, deadline) {
   let lastError;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://the-ftp-news.netlify.app',
-        'X-OpenRouter-Title': 'FTP News Article Writing Assistant',
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        models: OPENROUTER_MODEL_FALLBACKS,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.35,
-        max_tokens: 6500,
-        stream: false,
-      }),
-      signal: requestSignal(deadline, 9000),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (payload?.error) {
-      const error = new Error(errorMessage(payload.error, 'OpenRouter returned an API error.'));
-      error.status = Number(payload.error.status) || response.status;
-      throw error;
-    }
-    if (!response.ok) {
-      const error = new Error(errorMessage(payload?.message || payload?.error, `OpenRouter rejected the request (HTTP ${response.status}).`));
-      error.status = response.status;
-      throw error;
-    }
-    const choice = payload?.choices?.[0];
-    if (choice?.error || choice?.finish_reason === 'error') {
-      const error = new Error(errorMessage(choice.error, 'OpenRouter provider failed while generating the response.'));
-      error.status = Number(choice.error?.code) || 502;
-      throw error;
-    }
-    const content = choice?.message?.content;
-    const text = typeof content === 'string'
-      ? content
-      : Array.isArray(content)
-        ? content.map((part) => typeof part === 'string' ? part : part?.text || '').join('\n')
-        : '';
+  let sawRateLimit = false;
+  for (const model of OPENROUTER_MODEL_FALLBACKS) {
+    if (deadline - Date.now() <= 1000) break;
     try {
-      if (!text.trim()) {
-        const reason = choice?.finish_reason ? ` (finish reason: ${compact(choice.finish_reason, 60)})` : '';
-        const returnedModel = payload?.model ? ` Model: ${compact(payload.model, 100)}.` : '';
-        throw new Error(`OpenRouter returned no text${reason}.${returnedModel}`);
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://the-ftp-news.netlify.app',
+          'X-OpenRouter-Title': 'FTP News Article Writing Assistant',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.35,
+          max_tokens: 6500,
+          stream: false,
+        }),
+        signal: requestSignal(deadline, 4500),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (payload?.error || !response.ok) {
+        const error = new Error(errorMessage(payload?.error || payload?.message, `OpenRouter rejected ${model} (HTTP ${response.status}).`));
+        error.status = Number(payload?.error?.status) || response.status;
+        if (error.status === 401 || error.status === 403 || error.status === 402) throw error;
+        if (error.status === 429) sawRateLimit = true;
+        lastError = error;
+        continue;
       }
-      return { ...parseDraft(text, categories), model: payload?.model || OPENROUTER_MODEL, provider: 'openrouter-fallback' };
+      const choice = payload?.choices?.[0];
+      if (choice?.error || choice?.finish_reason === 'error') {
+        const error = new Error(errorMessage(choice.error, `${model} failed while generating.`));
+        error.status = Number(choice.error?.code) || 502;
+        lastError = error;
+        continue;
+      }
+      const content = choice?.message?.content;
+      const text = typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? content.map((part) => typeof part === 'string' ? part : part?.text || '').join('\n')
+          : '';
+      if (!text.trim()) {
+        const reason = choice?.finish_reason ? `; finish=${compact(choice.finish_reason, 40)}` : '';
+        const usage = Number(payload?.usage?.completion_tokens);
+        const tokens = Number.isFinite(usage) ? `; completion tokens=${usage}` : '';
+        lastError = new Error(`${model} returned no text${reason}${tokens}`);
+        continue;
+      }
+      try {
+        return { ...parseDraft(text, categories), model: payload?.model || model, provider: 'openrouter-fallback' };
+      } catch (error) {
+        lastError = new Error(`${model} returned unusable article JSON: ${errorMessage(error.message, 'invalid response')}`);
+      }
     } catch (error) {
+      if (error.status === 401 || error.status === 403 || error.status === 402) throw error;
       lastError = error;
-      if (attempt === 0 && deadline - Date.now() > 6000) continue;
-      throw new Error(`${errorMessage(error.message, 'OpenRouter returned an unusable response.')} Try again or choose another fallback model.`);
+      if (deadline - Date.now() <= 1000) break;
     }
   }
-  throw lastError || new Error('OpenRouter did not return a usable completion.');
+  const failure = new Error(lastError
+    ? `${errorMessage(lastError.message)} Tried available free fallback models.`
+    : 'No free fallback model returned a usable article before the request timed out.');
+  if (sawRateLimit && !lastError?.message?.includes('returned no text')) failure.status = 429;
+  throw failure;
 }
 
 async function fallbackOrFailure(prompt, categories, primaryFailure, deadline) {
