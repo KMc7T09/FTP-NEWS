@@ -93,9 +93,15 @@ export default function ArticleEditor() {
       });
       const result = await response.json().catch(() => null);
       if (!result) {
-        throw new Error(`Article AI function returned HTTP ${response.status}. Check that the latest Netlify deploy completed and inspect its function logs.`);
+        const requestId = response.headers.get('x-nf-request-id');
+        throw new Error(`Article AI returned HTTP ${response.status}.${requestId ? ` Netlify request ID: ${requestId}.` : ''} Check the admin-article-assist function logs.`);
       }
-      if (!response.ok) throw new Error(result.error || `Gemini request failed (${response.status}).`);
+      if (!response.ok) {
+        const detail = typeof result.error === 'string' ? result.error : result.error?.message;
+        const message = detail || result.message || result.error_description || result.code;
+        const requestId = response.headers.get('x-nf-request-id');
+        throw new Error(message || `Article AI returned HTTP ${response.status}.${requestId ? ` Netlify request ID: ${requestId}.` : ''}`);
+      }
       const safeRichText = (value) => String(value || '').trim().split(/\n\s*\n/)
         .filter(Boolean)
         .map((paragraph) => `<p>${paragraph.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`)
