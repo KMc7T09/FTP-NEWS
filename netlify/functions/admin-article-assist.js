@@ -62,6 +62,14 @@ function compact(value, max) {
   return String(value || '').trim().slice(0, max);
 }
 
+function errorMessage(value, fallback = 'Provider returned an unspecified error.') {
+  if (typeof value === 'string') return compact(value, 260) || fallback;
+  if (value && typeof value === 'object') {
+    return compact(value.message || value.error?.message || value.code || value.type, 260) || fallback;
+  }
+  return fallback;
+}
+
 async function fetchGeminiWithRetry(url, options, deadline) {
   let response;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -84,20 +92,40 @@ async function generateWithOpenRouter(prompt, categories, deadline) {
     body: JSON.stringify({
       model: OPENROUTER_MODEL,
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
       temperature: 0.35,
       max_tokens: 6500,
+      stream: false,
     }),
     signal: requestSignal(deadline, 9000),
   });
   const payload = await response.json().catch(() => ({}));
+  if (payload?.error) {
+    const error = new Error(errorMessage(payload.error, 'OpenRouter returned an API error.'));
+    error.status = Number(payload.error.status) || response.status;
+    throw error;
+  }
   if (!response.ok) {
-    const error = new Error(String(payload?.error?.message || payload?.message || 'OpenRouter request was rejected.').slice(0, 260));
+    const error = new Error(errorMessage(payload?.message || payload?.error, `OpenRouter rejected the request (HTTP ${response.status}).`));
     error.status = response.status;
     throw error;
   }
-  const text = payload?.choices?.[0]?.message?.content || '';
-  if (!text) throw new Error('OpenRouter returned an empty response.');
+  const choice = payload?.choices?.[0];
+  if (choice?.error || choice?.finish_reason === 'error') {
+    const error = new Error(errorMessage(choice.error, 'OpenRouter provider failed while generating the response.'));
+    error.status = Number(choice.error?.code) || 502;
+    throw error;
+  }
+  const content = choice?.message?.content;
+  const text = typeof content === 'string'
+    ? content
+    : Array.isArray(content)
+      ? content.map((part) => typeof part === 'string' ? part : part?.text || '').join('\n')
+      : '';
+  if (!text.trim()) {
+    const reason = choice?.finish_reason ? ` (finish reason: ${compact(choice.finish_reason, 60)})` : '';
+    const returnedModel = payload?.model ? ` Model: ${compact(payload.model, 100)}.` : '';
+    throw new Error(`OpenRouter returned no text${reason}.${returnedModel} Try again or choose another fallback model.`);
+  }
   return { ...parseDraft(text, categories), model: payload?.model || OPENROUTER_MODEL, provider: 'openrouter-fallback' };
 }
 
@@ -115,12 +143,13 @@ async function fallbackOrFailure(prompt, categories, primaryFailure, deadline) {
       if (error.status === 402) {
         return json(502, { error: 'Gemini failed and OpenRouter requires account credits for this request. Check the selected fallback model before enabling paid use.' });
       }
-      const detail = String(error.message || 'provider error').slice(0, 240);
-      return json(502, { error: `Gemini failed (${primaryFailure}); OpenRouter fallback also failed: ${detail}` });
+      const detail = errorMessage(error.message, 'provider error');
+      const primaryDetail = errorMessage(primaryFailure.message, 'No response from Gemini.');
+      return json(502, { error: `Gemini failed (HTTP ${primaryFailure.status || 'network'}: ${primaryDetail}); OpenRouter fallback also failed: ${detail}` });
     }
   }
   return json(primaryFailure.status === 429 ? 429 : 502, {
-    error: `Gemini request failed (HTTP ${primaryFailure.status || 'network'}): ${String(primaryFailure.message || 'No response from Gemini.').slice(0, 300)}. Configure OPENROUTER_API_KEY for fallback or retry later.`,
+    error: `Gemini request failed (HTTP ${primaryFailure.status || 'network'}): ${errorMessage(primaryFailure.message, 'No response from Gemini.')}. Configure OPENROUTER_API_KEY for fallback or retry later.`,
   });
 }
 
@@ -205,7 +234,7 @@ exports.handler = async (event) => {
     }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const message = String(payload?.error?.message || payload?.message || 'Gemini request failed.');
+      const message = errorMessage(payload?.error || payload?.message, 'Gemini request failed.');
       return fallbackOrFailure(prompt, categories, { status: response.status, message }, deadline);
     }
     const text = payload?.output_text
