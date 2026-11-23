@@ -91,7 +91,10 @@ export default function ArticleEditor() {
           categories: categories.map((category) => ({ name: category.name, slug: category.slug })),
         }),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
+      if (!result) {
+        throw new Error(`Article AI function returned HTTP ${response.status}. Check that the latest Netlify deploy completed and inspect its function logs.`);
+      }
       if (!response.ok) throw new Error(result.error || `Gemini request failed (${response.status}).`);
       const safeRichText = (value) => String(value || '').trim().split(/\n\s*\n/)
         .filter(Boolean)

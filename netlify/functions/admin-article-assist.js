@@ -58,8 +58,12 @@ function compact(value, max) {
 async function fetchGeminiWithRetry(url, options) {
   let response;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    response = await fetch(url, options);
-    if (response.status !== 503 || attempt === 1) return response;
+    try {
+      response = await fetch(url, options);
+      if (response.status !== 503 || attempt === 1) return response;
+    } catch (error) {
+      if (attempt === 1) throw error;
+    }
     await new Promise((resolve) => setTimeout(resolve, 1200));
   }
   return response;
@@ -92,6 +96,29 @@ async function generateWithOpenRouter(prompt, categories) {
   const text = payload?.choices?.[0]?.message?.content || '';
   if (!text) throw new Error('OpenRouter returned an empty response.');
   return { ...parseDraft(text, categories), model: payload?.model || OPENROUTER_MODEL, provider: 'openrouter-fallback' };
+}
+
+async function fallbackOrFailure(prompt, categories, primaryFailure) {
+  if (OPENROUTER_API_KEY) {
+    try {
+      return json(200, await generateWithOpenRouter(prompt, categories));
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        return json(502, { error: 'Gemini failed, and OpenRouter rejected its key. Check the OPENROUTER_API_KEY secret in Netlify.' });
+      }
+      if (error.status === 429) {
+        return json(503, { error: 'Gemini failed and OpenRouter free-model capacity is limited (429). Wait a little, then retry.' });
+      }
+      if (error.status === 402) {
+        return json(502, { error: 'Gemini failed and OpenRouter requires account credits for this request. Check the selected fallback model before enabling paid use.' });
+      }
+      const detail = String(error.message || 'provider error').slice(0, 240);
+      return json(502, { error: `Gemini failed (${primaryFailure}); OpenRouter fallback also failed: ${detail}` });
+    }
+  }
+  return json(primaryFailure.status === 429 ? 429 : 502, {
+    error: `Gemini request failed (HTTP ${primaryFailure.status || 'network'}): ${String(primaryFailure.message || 'No response from Gemini.').slice(0, 300)}. Configure OPENROUTER_API_KEY for fallback or retry later.`,
+  });
 }
 
 function parseDraft(text, categories) {
@@ -137,64 +164,46 @@ exports.handler = async (event) => {
 
     const prompt = `Create a complete editable news article draft for THE FTP NEWS. Write title, excerpt and body in ${language}; also provide a faithful Odia version in odiaTitle, odiaExcerpt and odiaBody. Return only valid JSON with string keys title, excerpt, body, odiaTitle, odiaExcerpt, odiaBody, category, metaTitle, metaDescription, and a string-array tags.\n\nEditorial rules:\n- Use only facts explicitly present in the supplied reporting notes. Never invent names, dates, quotes, numbers, events, sources, URLs, author names, or claims.\n- If a key fact is missing, insert a clear [VERIFY: what is missing] note in the body and Odia body instead of guessing.\n- Keep the writing neutral, attributed, readable, and original. Do not copy source wording.\n- The excerpt and SEO description should be concise. Body fields must be plain text paragraphs separated by blank lines, with no HTML or markdown.\n- Choose category exactly from this available list, or return an empty string if none fits: ${JSON.stringify(categories.map((item) => item.name))}\n- Generate up to 8 concise relevant tags from the supplied facts.\n- A source name or URL is a research lead, not proof; do not claim you independently verified it.\n- Return only valid JSON matching the requested fields.\n\nCurrent title suggestion: ${compact(input.title, 240) || 'Create a suitable headline'}\nProvided source name: ${compact(input.sourceName, 200) || 'Not supplied'}\nProvided source URL: ${compact(input.sourceURL, 500) || 'Not supplied'}\nReporting notes (the only factual basis):\n${brief}`;
 
-    const response = await fetchGeminiWithRetry('https://generativelanguage.googleapis.com/v1beta/interactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiKey },
-      body: JSON.stringify({
-        model: MODEL,
-        input: prompt,
-        store: false,
-        generation_config: { temperature: 0.35, max_output_tokens: 6500 },
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              excerpt: { type: 'string' },
-              body: { type: 'string' },
-              odiaTitle: { type: 'string' },
-              odiaExcerpt: { type: 'string' },
-              odiaBody: { type: 'string' },
-              category: { type: 'string' },
-              tags: { type: 'array', items: { type: 'string' } },
-              metaTitle: { type: 'string' },
-              metaDescription: { type: 'string' },
+    let response;
+    try {
+      response = await fetchGeminiWithRetry('https://generativelanguage.googleapis.com/v1beta/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiKey },
+        body: JSON.stringify({
+          model: MODEL,
+          input: prompt,
+          store: false,
+          generation_config: { temperature: 0.35, max_output_tokens: 6500 },
+          response_format: {
+            type: 'text',
+            mime_type: 'application/json',
+            schema: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                excerpt: { type: 'string' },
+                body: { type: 'string' },
+                odiaTitle: { type: 'string' },
+                odiaExcerpt: { type: 'string' },
+                odiaBody: { type: 'string' },
+                category: { type: 'string' },
+                tags: { type: 'array', items: { type: 'string' } },
+                metaTitle: { type: 'string' },
+                metaDescription: { type: 'string' },
+              },
+              required: ['title', 'excerpt', 'body', 'odiaTitle', 'odiaExcerpt', 'odiaBody', 'category', 'tags', 'metaTitle', 'metaDescription'],
             },
-            required: ['title', 'excerpt', 'body', 'odiaTitle', 'odiaExcerpt', 'odiaBody', 'category', 'tags', 'metaTitle', 'metaDescription'],
           },
-        },
-      }),
-      signal: AbortSignal.timeout(45000),
-    });
+        }),
+        signal: AbortSignal.timeout(45000),
+      });
+    } catch (error) {
+      return fallbackOrFailure(prompt, categories, { status: 0, message: error.message || 'network connection failed' });
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = String(payload?.error?.message || payload?.message || 'Gemini request failed.');
-      if (response.status === 503) {
-        if (OPENROUTER_API_KEY) {
-          try {
-            return json(200, await generateWithOpenRouter(prompt, categories));
-          } catch (fallbackError) {
-            if (fallbackError.status === 401 || fallbackError.status === 403) {
-              return json(502, { error: 'Gemini is overloaded, and OpenRouter rejected its key. Check the OPENROUTER_API_KEY secret in Netlify.' });
-            }
-            if (fallbackError.status === 429) {
-              return json(503, { error: 'Gemini is overloaded and OpenRouter free-model capacity is also limited. Wait a little, then retry.' });
-            }
-            if (fallbackError.status === 402) {
-              return json(502, { error: 'Gemini is overloaded and OpenRouter requires account credits for this request. Check the selected fallback model before enabling paid use.' });
-            }
-            return json(503, { error: `Gemini is overloaded; OpenRouter fallback failed: ${fallbackError.message || 'unknown provider error'}` });
-          }
-        }
-        return json(503, { error: 'Gemini is temporarily overloaded. I retried once; please try again in a few minutes.' });
-      }
-      return json(response.status === 429 ? 429 : 502, {
-        error: response.status === 429
-          ? 'Gemini quota is exhausted for this API project. Check AI Studio API quota/billing, then retry.'
-          : message.slice(0, 500),
-      });
+      return fallbackOrFailure(prompt, categories, { status: response.status, message });
     }
     const text = payload?.output_text
       || (payload?.steps || [])
