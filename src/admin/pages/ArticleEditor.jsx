@@ -171,7 +171,7 @@ export default function ArticleEditor() {
         <div className="news-card space-y-5 p-5">
           <section className="rounded-md border border-red-200 bg-red-50/60 p-4" aria-labelledby="gemini-writing-title">
             <div className="flex items-center gap-2"><Sparkles size={17} className="text-brand-red" /><h2 id="gemini-writing-title" className="font-bold">Gemini Writing Assistant</h2></div>
-            <p className="mt-1 text-sm text-gray-600">Topic aur confirmed notes do. Gemini title, excerpt, article body, Odia version, category, tags aur SEO fields fill karega. Author, source URL aur image manually check/add karo.</p>
+            <p className="mt-1 text-sm text-gray-600">Source Link me public article URL dene par Gemini us page ko padhkar detailed draft banayega. Link na ho ya page access na ho, toh Topic / reporting notes me verified details paste karo. Publish se pehle facts aur source zaroor check karo.</p>
             <label className="label mt-3 block">Topic / reporting notes</label>
             <textarea className="input mt-2 min-h-24" value={aiBrief} onChange={(event) => setAiBrief(event.target.value)} placeholder="Kya hua, kahan, kab, kis source se confirm hua? Sirf verified notes do." maxLength={3500} />
             <div className="mt-3 flex flex-wrap items-end gap-3">
