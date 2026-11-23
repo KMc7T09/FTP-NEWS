@@ -4,6 +4,12 @@ const CONFIGURED_FALLBACK_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || '
 const OPENROUTER_MODEL = !CONFIGURED_FALLBACK_MODEL || CONFIGURED_FALLBACK_MODEL === 'openrouter/free'
   ? 'google/gemma-4-31b-it:free'
   : CONFIGURED_FALLBACK_MODEL;
+const OPENROUTER_MODEL_FALLBACKS = [...new Set([
+  OPENROUTER_MODEL,
+  'baidu/ernie-5.5-flash-preview:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemma-4-26b-a4b-it:free',
+])];
 const REQUEST_BUDGET_MS = 18000;
 
 function requestSignal(deadline, maxMs) {
@@ -96,6 +102,7 @@ async function generateWithOpenRouter(prompt, categories, deadline) {
       },
       body: JSON.stringify({
         model: OPENROUTER_MODEL,
+        models: OPENROUTER_MODEL_FALLBACKS,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.35,
         max_tokens: 6500,
