@@ -536,6 +536,40 @@ export async function updateAdminPublicRepresentativeStatus(id, updates) {
   return data;
 }
 
+export async function previewOfficialRepresentativesImport(payload) {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Sign in with an authorized admin account first.');
+  const response = await fetch('/.netlify/functions/admin-representatives-import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  let result;
+  try { result = await response.json(); } catch { throw new Error(`Official source returned an unreadable response (${response.status}).`); }
+  if (!response.ok || !result?.ok) throw new Error(result?.error || `Import preview failed (${response.status}).`);
+  return result;
+}
+
+export async function importAdminPublicRepresentatives(rows) {
+  const client = requireSupabase();
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  const userId = data.session?.user?.id;
+  if (!userId) throw new Error('Sign in with an authorized admin account first.');
+  if (!Array.isArray(rows) || rows.length < 1 || rows.length > 1000) throw new Error('Import must contain between 1 and 1,000 records.');
+  let saved = 0;
+  for (let offset = 0; offset < rows.length; offset += 100) {
+    const chunk = rows.slice(offset, offset + 100).map((row) => ({ ...row, updated_by: userId }));
+    const { error: saveError } = await client.from('public_representatives').upsert(chunk, { onConflict: 'slug', ignoreDuplicates: false });
+    if (saveError) throw new Error(`Saved ${saved} of ${rows.length} records; batch failed: ${saveError.message}`);
+    saved += chunk.length;
+  }
+  return { saved };
+}
+
 export async function listComments({ approvedOnly = false, articleId = '', limit = 200 } = {}) {
   const client = requireSupabase();
   let query = client.from('comments').select('*').order('created_at', { ascending: false });

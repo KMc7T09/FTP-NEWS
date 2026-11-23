@@ -176,6 +176,12 @@ img {
 .public-data-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #101820; font-size: 0.85rem; }
 .public-data-search input::placeholder { color: #7a8580; }
 .public-data-search button { color: #52615b; font-size: 1.35rem; line-height: 1; }
+.public-data-count { display: flex; min-width: 112px; align-items: center; gap: 0.5rem; border-left: 2px solid #176b52; padding: 0.45rem 0 0.45rem 0.8rem; color: #58656d; }
+.public-data-count strong { color: #101820; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.public-data-count span { font-size: 0.78rem; }
+.public-data-filter-control { display: grid; min-width: min(220px, 100%); gap: 0.3rem; color: #59665f; font-size: 0.72rem; font-weight: 800; }
+.public-data-filter-control select { width: 100%; min-height: 40px; border: 1px solid #cbd3d0; background: #fff; padding: 0.45rem 2rem 0.45rem 0.65rem; color: #17231e; font-size: 0.84rem; font-weight: 500; }
+.public-data-filter-control select:focus-visible { outline: 2px solid #176b52; outline-offset: 2px; }
 .public-data-directory-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(270px, 0.7fr); gap: 1.2rem; align-items: start; }
 .public-data-topic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
 .public-data-topic { position: relative; display: grid; grid-template-columns: 30px 42px minmax(0, 1fr) 16px; gap: 0.65rem; align-items: start; min-height: 136px; border: 1px solid var(--ftp-data-rule); background: #fff; padding: 1rem; text-align: left; transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease; }

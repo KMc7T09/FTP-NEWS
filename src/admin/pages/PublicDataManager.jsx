@@ -43,12 +43,25 @@ function parseCsv(text) {
   row.push(cell);
   if (row.some((value) => value.trim())) rows.push(row);
   if (rows.length < 2) throw new Error('CSV must include a header row and at least one data row.');
-  const headers = rows[0].map((header) => header.trim().toLowerCase().replace(/[ -]+/g, '_'));
-  if (new Set(headers).size !== headers.length) throw new Error('CSV contains duplicate column headings.');
-  return rows.slice(1).map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ''])));
+  const headers = rows[0].map((header) => header.replace(/^\uFEFF/, '').trim());
+  if (new Set(headers.map((header) => header.toLowerCase())).size !== headers.length) throw new Error('CSV contains duplicate column headings.');
+  return { headers, records: rows.slice(1).map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || '']))) };
 }
 
 const importHeaders = 'geography_code,geography_name,geography_type,value,value_text,unit,published_rank,rank_scope,is_missing,notes,source_page';
+const observationFields = {
+  geography_code: { label: 'Geography code / ID', match: /geo.*(code|id)|state.*code|district.*code|iso|pc.?code/i },
+  geography_name: { label: 'Place / country / state / district name *', match: /geo.*name|state.*name|district.*name|country.*name|constituency|area|location|name/i },
+  geography_type: { label: 'Geography type (needed for mixed indicators)', match: /geo.*type|administrative.*level|level/i },
+  value: { label: 'Numeric value', match: /^(value|score|rate|percentage|percent|value_numeric|total|count|index)$/i },
+  value_text: { label: 'Text value (optional)', match: /value.*text|category|grade|status/i },
+  unit: { label: 'Unit (optional)', match: /^unit|measurement/i },
+  published_rank: { label: 'Published rank (optional)', match: /rank|position/i },
+  rank_scope: { label: 'Rank comparison group (optional)', match: /rank.*scope|comparison.*group|among/i },
+  is_missing: { label: 'Missing-data flag (optional)', match: /is.*missing|missing.*value/i },
+  notes: { label: 'Notes (optional)', match: /note|comment|footnote/i },
+  source_page: { label: 'Source page / row reference (optional)', match: /source.*page|page.*number|table.*number|row.*reference/i },
+};
 
 export default function PublicDataManager() {
   const { isAdmin } = useAuth();
@@ -62,6 +75,10 @@ export default function PublicDataManager() {
   const [selectedEdition, setSelectedEdition] = useState('');
   const [importRows, setImportRows] = useState([]);
   const [fileName, setFileName] = useState('');
+  const [csvHeaders, setCsvHeaders] = useState([]);
+  const [csvRecords, setCsvRecords] = useState([]);
+  const [csvMapping, setCsvMapping] = useState({});
+  const [csvError, setCsvError] = useState('');
   const [provider, setProvider] = useState('world-bank');
   const [officialForm, setOfficialForm] = useState({ indicatorCode: '', year: String(new Date().getFullYear() - 1), resourceId: '', geographyType: 'state', codeField: '', nameField: '', valueField: '', unitField: '', rankField: '' });
   const [officialLoading, setOfficialLoading] = useState(false);
@@ -91,6 +108,7 @@ export default function PublicDataManager() {
   useEffect(() => { load(); }, []);
 
   const filteredEditions = useMemo(() => editions.filter((item) => [item.edition_label, item.indicator?.name, item.source?.name].join(' ').toLowerCase().includes(term.trim().toLowerCase())), [editions, term]);
+  const selectedEditionLevel = editions.find((item) => item.id === selectedEdition)?.indicator?.geography_level;
 
   async function saveNewIndicator(event) {
     event.preventDefault();
@@ -121,21 +139,57 @@ export default function PublicDataManager() {
   async function readCsv(file) {
     try {
       const parsed = parseCsv(await file.text());
-      const allowed = new Set(importHeaders.split(','));
-      const unknown = Object.keys(parsed[0]).filter((header) => !allowed.has(header));
-      if (unknown.length) throw new Error(`Unexpected CSV column(s): ${unknown.join(', ')}. Use the documented template headings.`);
-      if (parsed.some((row) => !row.geography_code || !row.geography_name || !['country', 'state', 'ut', 'district'].includes(row.geography_type.toLowerCase()))) {
-        throw new Error('Each row needs a geography code, name and type (country/state/ut/district).');
-      }
-      const keys = parsed.map((row) => row.geography_code.trim());
-      if (new Set(keys).size !== keys.length) throw new Error('Duplicate geography_code values found in this file.');
-      if (parsed.some((row) => row.value && !Number.isFinite(Number(row.value)))) throw new Error('A numeric value is invalid. Leave it blank and set is_missing=true when the source has no value.');
-      if (parsed.some((row) => row.published_rank && (!Number.isInteger(Number(row.published_rank)) || Number(row.published_rank) < 1))) throw new Error('Published ranks must be positive whole numbers.');
-      if (parsed.length > 5000) throw new Error('Import is limited to 5,000 rows per file.');
-      setImportRows(parsed);
+      if (parsed.records.length > 5000) throw new Error('Import is limited to 5,000 rows per file.');
+      const mapping = Object.fromEntries(Object.entries(observationFields).map(([key, definition]) => [key, parsed.headers.find((header) => definition.match.test(header)) || '']));
+      setCsvHeaders(parsed.headers);
+      setCsvRecords(parsed.records);
+      setCsvMapping(mapping);
+      setImportRows([]);
+      setCsvError('');
       setFileName(file.name);
-      toast.success(`${parsed.length} rows ready for preview.`);
-    } catch (parseError) { setImportRows([]); toast.error(parseError.message || 'CSV could not be read.'); }
+      toast.success(`${parsed.records.length} rows loaded. Map columns and preview before importing.`);
+    } catch (parseError) { setImportRows([]); setCsvRecords([]); setCsvHeaders([]); setCsvError(parseError.message || 'CSV could not be read.'); toast.error(parseError.message || 'CSV could not be read.'); }
+  }
+
+  function previewMappedCsv() {
+    setCsvError('');
+    try {
+      if (!selectedEdition) throw new Error('Create or select the dataset edition first.');
+      if (!csvMapping.geography_name) throw new Error('Map the source column containing place names.');
+      const target = editions.find((item) => item.id === selectedEdition);
+      const level = target?.indicator?.geography_level;
+      const normalized = csvRecords.map((row, index) => {
+        const geography_name = String(row[csvMapping.geography_name] || '').trim();
+        const geography_type = String(csvMapping.geography_type ? row[csvMapping.geography_type] : level === 'country' ? 'country' : level === 'district' ? 'district' : level === 'mixed' ? '' : 'state').trim().toLowerCase();
+        if (!geography_name) throw new Error(`CSV row ${index + 1} has an empty geography name.`);
+        if (!['country', 'state', 'ut', 'district'].includes(geography_type)) throw new Error(`Map a valid geography type for CSV row ${index + 1}; expected country, state, ut, or district.`);
+        const rawValue = csvMapping.value ? String(row[csvMapping.value] || '').trim() : '';
+        const numericValue = rawValue ? Number(rawValue.replace(/,/g, '')) : null;
+        if (rawValue && !Number.isFinite(numericValue)) throw new Error('A row has a non-numeric mapped value. Map that column as Text value or clean the source value.');
+        const value_text = String(csvMapping.value_text ? row[csvMapping.value_text] || '' : '').trim();
+        const isMissing = String(csvMapping.is_missing ? row[csvMapping.is_missing] || '' : '').trim().toLowerCase();
+        const generatedCode = `${geography_type}:${geography_name.toLocaleLowerCase()}`;
+        return {
+          geography_code: String(csvMapping.geography_code ? row[csvMapping.geography_code] || '' : '').trim() || generatedCode,
+          geography_name,
+          geography_type,
+          value: rawValue && Number.isFinite(numericValue) ? numericValue : null,
+          value_text: value_text || (!rawValue || !Number.isFinite(numericValue) ? rawValue : ''),
+          unit: String(csvMapping.unit ? row[csvMapping.unit] || '' : '').trim() || target?.indicator?.unit || '',
+          published_rank: String(csvMapping.published_rank ? row[csvMapping.published_rank] || '' : '').trim(),
+          rank_scope: String(csvMapping.rank_scope ? row[csvMapping.rank_scope] || '' : '').trim(),
+          is_missing: ['true', 'yes', '1', 'missing', 'na', 'n/a'].includes(isMissing),
+          notes: String(csvMapping.notes ? row[csvMapping.notes] || '' : '').trim(),
+          source_page: String(csvMapping.source_page ? row[csvMapping.source_page] || '' : '').trim(),
+        };
+      });
+      const codes = normalized.map((row) => row.geography_code);
+      if (new Set(codes).size !== codes.length) throw new Error('Duplicate geography IDs found. Map a stable source ID column or remove duplicate rows.');
+      if (normalized.some((row) => row.value === null && !row.value_text && !row.is_missing)) throw new Error('Some rows have no numeric or text value. Map the value column or mark source-missing values.');
+      if (normalized.some((row) => row.published_rank && (!Number.isInteger(Number(row.published_rank)) || Number(row.published_rank) < 1))) throw new Error('Published ranks must be positive whole numbers.');
+      setImportRows(normalized);
+      toast.success(`${normalized.length} mapped rows ready. Review the preview before importing.`);
+    } catch (mapError) { setImportRows([]); setCsvError(mapError.message || 'Could not map this CSV.'); }
   }
 
   async function importCsv() {
@@ -251,15 +305,18 @@ export default function PublicDataManager() {
       </section>
 
       <section className="mt-8 border-t border-gray-200 pt-6">
-        <h2 className="text-xl font-extrabold">Import observations from CSV</h2>
-        <p className="mt-1 text-sm text-gray-600">Required columns: <code>geography_code, geography_name, geography_type</code>. Optional columns: value, value_text, unit, published_rank, rank_scope, is_missing, notes, source_page. Imports from this section or the official APIs upsert matching geography codes; rows omitted from a later import are not deleted. Any import returns the edition to an unverified draft.</p>
+        <h2 className="text-xl font-extrabold">Upload an official data CSV</h2>
+        <p className="mt-1 max-w-4xl text-sm text-gray-600">CSV columns can have the publisher's own headings. Map them below; missing IDs are generated from geography type and name. For Excel files, export/save as CSV first. This step only previews data; importing resets the edition to draft + unverified.</p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="public-report-field min-w-64"><span>Dataset edition</span><select className="input" value={selectedEdition} onChange={(event) => setSelectedEdition(event.target.value)}><option value="">Select draft or published edition</option>{editions.map((item) => <option key={item.id} value={item.id}>{item.indicator?.name} · {item.edition_label} ({item.status})</option>)}</select></label>
+          <label className="public-report-field min-w-64"><span>Dataset edition (create this first)</span><select className="input" value={selectedEdition} onChange={(event) => setSelectedEdition(event.target.value)}><option value="">Select dataset edition</option>{editions.map((item) => <option key={item.id} value={item.id}>{item.indicator?.name} · {item.edition_label} ({item.status})</option>)}</select></label>
           <label className="btn-secondary cursor-pointer"><Upload size={16} /> Choose CSV<input className="sr-only" type="file" accept=".csv,text/csv" onChange={(event) => event.target.files?.[0] && readCsv(event.target.files[0])} /></label>
           <button type="button" className="btn-secondary" onClick={() => { const blob = new Blob([`${importHeaders}\n`], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'ftp-observations-template.csv'; link.click(); URL.revokeObjectURL(url); }}><Download size={16} /> CSV template</button>
+          <button type="button" className="btn-secondary" disabled={!csvRecords.length || !selectedEdition} onClick={previewMappedCsv}><FileSpreadsheet size={16} /> Map &amp; preview</button>
           <button type="button" className="btn-primary" disabled={saving || !selectedEdition || !importRows.length} onClick={importCsv}><Upload size={16} /> Import {importRows.length || ''} rows</button>
         </div>
-        {fileName && <p className="mt-3 text-sm font-semibold" role="status">Previewing {fileName}: {importRows.length} row(s). First five shown below.</p>}
+        {csvError && <div className="public-data-feedback public-data-feedback-error mt-3" role="alert">{csvError}</div>}
+        {fileName && <p className="mt-3 text-sm font-semibold" role="status">{fileName}: {csvRecords.length} source rows loaded; {importRows.length} normalized rows ready.</p>}
+        {!!csvHeaders.length && <div className="mt-4 grid gap-3 rounded-md border border-gray-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(observationFields).map(([key, definition]) => <label className="public-report-field" key={key}><span>{definition.label}</span><select className="input" value={csvMapping[key] || ''} onChange={(event) => setCsvMapping((old) => ({ ...old, [key]: event.target.value }))}><option value="">{key === 'geography_name' ? 'Choose source column' : 'Not in source'}</option>{csvHeaders.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>)}<p className="text-xs text-gray-500 sm:col-span-2 lg:col-span-3">{selectedEditionLevel === 'mixed' ? 'This indicator combines geography levels, so map Geography type.' : 'The selected indicator level fills geography type unless a source column is mapped.'} Use a source ID column where available so future editions match the same places reliably.</p></div>}
         {!!importRows.length && <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-xs"><thead><tr>{['geography_code','geography_name','geography_type','value','published_rank','source_page'].map((head) => <th className="p-2" key={head}>{head}</th>)}</tr></thead><tbody>{importRows.slice(0, 5).map((row, index) => <tr className="border-t" key={`${row.geography_code}-${index}`}>{['geography_code','geography_name','geography_type','value','published_rank','source_page'].map((key) => <td className="p-2" key={key}>{row[key] || '—'}</td>)}</tr>)}</tbody></table></div>}
       </section>
 
