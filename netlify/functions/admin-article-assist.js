@@ -1,6 +1,6 @@
 const MODEL = process.env.ARTICLE_WRITER_MODEL || 'gemini-3.5-flash-lite';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const OPENROUTER_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || process.env.OPENROUTER_MODEL || 'tencent/hy3:free';
+const OPENROUTER_MODEL = process.env.ARTICLE_WRITER_FALLBACK_MODEL || 'openrouter/free';
 
 function json(statusCode, body) {
   return {
@@ -77,15 +77,21 @@ async function generateWithOpenRouter(prompt, categories) {
     body: JSON.stringify({
       model: OPENROUTER_MODEL,
       messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
       temperature: 0.35,
       max_tokens: 6500,
     }),
     signal: AbortSignal.timeout(45000),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error('Alternate AI provider could not complete the draft.');
+  if (!response.ok) {
+    const error = new Error(String(payload?.error?.message || payload?.message || 'OpenRouter request was rejected.').slice(0, 260));
+    error.status = response.status;
+    throw error;
+  }
   const text = payload?.choices?.[0]?.message?.content || '';
-  return { ...parseDraft(text, categories), model: OPENROUTER_MODEL, provider: 'openrouter-fallback' };
+  if (!text) throw new Error('OpenRouter returned an empty response.');
+  return { ...parseDraft(text, categories), model: payload?.model || OPENROUTER_MODEL, provider: 'openrouter-fallback' };
 }
 
 function parseDraft(text, categories) {
@@ -169,8 +175,17 @@ exports.handler = async (event) => {
         if (OPENROUTER_API_KEY) {
           try {
             return json(200, await generateWithOpenRouter(prompt, categories));
-          } catch {
-            return json(503, { error: 'Gemini is overloaded and the alternate AI provider could not complete the draft. Please retry later.' });
+          } catch (fallbackError) {
+            if (fallbackError.status === 401 || fallbackError.status === 403) {
+              return json(502, { error: 'Gemini is overloaded, and OpenRouter rejected its key. Check the OPENROUTER_API_KEY secret in Netlify.' });
+            }
+            if (fallbackError.status === 429) {
+              return json(503, { error: 'Gemini is overloaded and OpenRouter free-model capacity is also limited. Wait a little, then retry.' });
+            }
+            if (fallbackError.status === 402) {
+              return json(502, { error: 'Gemini is overloaded and OpenRouter requires account credits for this request. Check the selected fallback model before enabling paid use.' });
+            }
+            return json(503, { error: `Gemini is overloaded; OpenRouter fallback failed: ${fallbackError.message || 'unknown provider error'}` });
           }
         }
         return json(503, { error: 'Gemini is temporarily overloaded. I retried once; please try again in a few minutes.' });
