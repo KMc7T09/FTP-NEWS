@@ -8,7 +8,6 @@ const OPENROUTER_MODEL_FALLBACKS = [...new Set([
   OPENROUTER_MODEL,
   'baidu/ernie-5.5-flash-preview:free',
   'nvidia/nemotron-3.5-lightning:free',
-  'google/gemma-4-26b-a4b-it:free',
 ])];
 const REQUEST_BUDGET_MS = 18000;
 
