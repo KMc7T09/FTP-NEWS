@@ -1,4 +1,4 @@
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
+const MODEL = process.env.ARTICLE_AI_MODEL || 'gemini-3.5-flash-lite';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'tencent/hy3:free';
@@ -60,36 +60,24 @@ function fallbackAnswer({ question, title, excerpt, sourceName, sourceURL }) {
 }
 
 function getText(data) {
-  return (data?.candidates?.[0]?.content?.parts || [])
+  const output = data?.output_text || (data?.steps || [])
+    .filter((step) => step.type === 'model_output')
+    .flatMap((step) => step.content || [])
     .map((part) => part.text || '')
-    .join('\n')
-    .trim();
+    .join('\n');
+  return String(output || '').trim();
 }
 
-async function callGemini(payload, useSearch = true) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: payload }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.25,
-      topP: 0.9,
-      maxOutputTokens: 900,
-    },
-  };
-
-  if (useSearch) {
-    body.tools = [{ google_search: {} }];
-  }
-
-  const response = await fetch(url, {
+async function callGemini(payload) {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+    body: JSON.stringify({
+      model: MODEL,
+      input: payload,
+      store: false,
+      generation_config: { temperature: 0.25, max_output_tokens: 900 },
+    }),
   });
 
   if (!response.ok) {
@@ -208,7 +196,7 @@ ${question}
     let data;
     let grounded = false;
     try {
-      data = await callGemini(prompt, false);
+      data = await callGemini(prompt);
     } catch (error) {
       if (!isQuotaError(error)) throw error;
       return json(200, {

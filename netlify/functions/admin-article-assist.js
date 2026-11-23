@@ -1,4 +1,4 @@
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
+const MODEL = process.env.ARTICLE_WRITER_MODEL || 'gemini-3.5-flash-lite';
 
 function json(statusCode, body) {
   return {
@@ -80,25 +80,44 @@ exports.handler = async (event) => {
 
     const prompt = `Create an editable news article draft in ${language} for THE FTP NEWS. Return only valid JSON with string keys title, excerpt, body.\n\nEditorial rules:\n- Use only facts explicitly present in the supplied reporting notes. Never invent names, dates, quotes, numbers, events, sources, or claims.\n- If a key fact is missing, insert a clear [VERIFY: what is missing] note in the body instead of guessing.\n- Keep the writing neutral, attributed, readable, and original. Do not copy source wording.\n- The excerpt should be concise. The body should use plain text paragraphs separated by blank lines, with no HTML or markdown.\n- A source name or URL is a research lead, not proof; do not claim you independently verified it.\n\nCurrent title suggestion: ${compact(input.title, 240) || 'Create a suitable headline'}\nProvided source name: ${compact(input.sourceName, 200) || 'Not supplied'}\nProvided source URL: ${compact(input.sourceURL, 500) || 'Not supplied'}\nReporting notes (the only factual basis):\n${brief}`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent?key=${encodeURIComponent(settings.geminiKey)}`, {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiKey },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.35, maxOutputTokens: 5000, responseMimeType: 'application/json' },
+        model: MODEL,
+        input: prompt,
+        store: false,
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              excerpt: { type: 'string' },
+              body: { type: 'string' },
+            },
+            required: ['title', 'excerpt', 'body'],
+          },
+        },
       }),
       signal: AbortSignal.timeout(45000),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const message = String(payload?.error?.message || 'Gemini request failed.');
+      const message = String(payload?.error?.message || payload?.message || 'Gemini request failed.');
       return json(response.status === 429 ? 429 : 502, {
         error: response.status === 429
           ? 'Gemini quota is exhausted for this API project. Check AI Studio API quota/billing, then retry.'
           : message.slice(0, 500),
       });
     }
-    const text = (payload?.candidates?.[0]?.content?.parts || []).map((part) => part.text || '').join('\n');
+    const text = payload?.output_text
+      || (payload?.steps || [])
+        .filter((step) => step.type === 'model_output')
+        .flatMap((step) => step.content || [])
+        .map((part) => part.text || '')
+        .join('\n');
     return json(200, { ...parseDraft(text), model: MODEL });
   } catch (error) {
     const status = /session|login/i.test(error.message) ? 401 : 500;
